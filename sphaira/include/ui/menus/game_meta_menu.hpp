@@ -3,6 +3,7 @@
 #include "ui/menus/menu_base.hpp"
 #include "ui/menus/game_menu.hpp"
 #include "ui/list.hpp"
+#include "nx_versions.hpp"
 #include "yati/nx/ncm.hpp"
 #include <span>
 #include <memory>
@@ -50,6 +51,8 @@ struct Menu final : MenuBase {
 private:
     void SetIndex(s64 index);
     void Scan();
+    void LoadMissing();
+    void DownloadAndRefreshMissing();
     void UpdateSubheading();
 
     auto GetSelectedEntries() const {
@@ -60,7 +63,7 @@ private:
             }
         }
 
-        if (!m_entries.empty() && out.empty()) {
+        if (!m_entries.empty() && out.empty() && static_cast<size_t>(m_index) < m_entries.size()) {
             out.emplace_back(m_entries[m_index].status);
         }
 
@@ -99,6 +102,7 @@ private:
 private:
     Entry& m_entry;
     std::vector<MetaEntry> m_entries{};
+    std::vector<nx_versions::MissingEntry> m_missing_entries{};
     s64 m_index{};
     s64 m_selected_count{};
     std::unique_ptr<List> m_list{};
