@@ -62,6 +62,19 @@ The USB protocol is the same as tinfoil, so tools such as [ns-usbloader](https:/
 
 Once you have connected your ftp client to your switch, you can upload files to install into the `install` folder.
 
+## Missing Content Checker
+
+Sphaira can check for missing updates and DLC for your installed games. When viewing a game's application content, missing entries from the [nx-versions](https://github.com/16BitWonder/nx-versions) database are shown at the bottom of the list.
+
+The version list is downloaded on demand via the **Update version list** option in the content options sidebar. If the cached list is older than 1 week, you will be prompted to re-download it.
+
+The version list URL can be overridden in `/config/sphaira/config.ini`:
+
+```ini
+[nx_versions]
+url = https://example.com/custom_versions.txt
+```
+
 ## Building from source
 
 You will first need to install [devkitPro](https://devkitpro.org/wiki/Getting_Started).
@@ -104,4 +117,6 @@ The output will be found in `build/MinSizeRel/sphaira.nro`
 - [oss-nvjpg](https://github.com/averne/oss-nvjpg)
 - [nsz](https://github.com/nicoboss/nsz)
 - [themezer](https://themezer.net/)
+- [nx-versions](https://github.com/16BitWonder/nx-versions) (version database for missing content detection)
+- [NX-Update-Checker](https://github.com/16BitWonder/NX-Update-Checker) (inspiration for missing content feature)
 - Everyone who has contributed to this project!
