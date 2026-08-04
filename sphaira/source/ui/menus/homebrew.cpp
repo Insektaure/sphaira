@@ -200,7 +200,20 @@ void Menu::SetIndex(s64 index) {
 
 void Menu::InstallHomebrew() {
     const auto& nro = GetEntry();
-    InstallHomebrew(nro.path, nro_get_icon(nro.path, nro.icon_size, nro.icon_offset));
+    const auto path = nro.path;
+    auto icon = nro_get_icon(nro.path, nro.icon_size, nro.icon_offset);
+
+    App::Push<OptionBox>(
+        "Select forwarder address space"_i18n,
+        "36-bit (Default)", "39-bit", 0, [path, icon = std::move(icon)](auto op_index){
+            if (op_index) {
+                const auto address_space = *op_index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
+                if (R_FAILED(InstallHomebrew(path, icon, address_space))) {
+                    log_write("failed to create forwarder\n");
+                }
+            }
+        }
+    );
 }
 
 void Menu::ScanHomebrew() {
@@ -416,16 +429,17 @@ void Menu::OnLayoutChange() {
     grid::Menu::OnLayoutChange(m_list, m_layout.Get());
 }
 
-Result Menu::InstallHomebrew(const fs::FsPath& path, const std::vector<u8>& icon) {
+Result Menu::InstallHomebrew(const fs::FsPath& path, const std::vector<u8>& icon, ForwarderAddressSpace address_space) {
     OwoConfig config{};
     config.nro_path = path.toString();
     R_TRY(nro_get_nacp(path, config.nacp));
     config.icon = icon;
+    config.address_space = address_space;
     return App::Install(config);
 }
 
-Result Menu::InstallHomebrewFromPath(const fs::FsPath& path) {
-    return InstallHomebrew(path, nro_get_icon(path));
+Result Menu::InstallHomebrewFromPath(const fs::FsPath& path, ForwarderAddressSpace address_space) {
+    return InstallHomebrew(path, nro_get_icon(path), address_space);
 }
 
 void Menu::DisplayOptions() {

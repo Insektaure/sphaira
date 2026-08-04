@@ -1664,8 +1664,6 @@ App::App(const char* argv0) {
             }
         }
 
-        devoptab::FixDkpBug();
-
 #ifdef ENABLE_LIBHAZE
         if (App::GetMtpEnable()) {
             SCOPED_TIMESTAMP("mtp init");

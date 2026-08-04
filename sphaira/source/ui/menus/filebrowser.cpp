@@ -72,6 +72,7 @@ private:
     SidebarEntryTextInput* m_author{};
     SidebarEntryTextInput* m_version{};
     SidebarEntryFilePicker* m_icon{};
+    ForwarderAddressSpace m_address_space{ForwarderAddressSpace::Bit36};
 };
 
 std::atomic_bool g_change_signalled{};
@@ -335,11 +336,19 @@ ForwarderForm::ForwarderForm(const FileAssocEntry& assoc, const RomDatabaseIndex
         "Set the path to the icon for the forwarder"_i18n
     );
 
+    SidebarEntryArray::Items address_space_items{"36-bit (Default)", "39-bit"};
+    this->Add<SidebarEntryArray>(
+        "Address Space"_i18n, address_space_items, [this](s64& index){
+            m_address_space = index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
+        }, 0, "Select the address space mode for the forwarder"_i18n
+    );
+
     auto callback = this->Add<SidebarEntryCallback>("Create", [this, file_name](){
         OwoConfig config{};
         config.nro_path = m_assoc.path.toString();
         config.args = nro_add_arg_file(m_arg_path);
         config.nacp = m_nacp;
+        config.address_space = m_address_space;
 
         // patch the name.
         config.name = m_name->GetValue();
@@ -827,9 +836,18 @@ void FsView::SetIndex(s64 index) {
 
 void FsView::InstallForwarder() {
     if (IsSamePath(GetEntry().GetExtension(), "nro")) {
-        if (R_FAILED(homebrew::Menu::InstallHomebrewFromPath(GetNewPathCurrent()))) {
-            log_write("failed to create forwarder\n");
-        }
+        const auto path = GetNewPathCurrent();
+        App::Push<OptionBox>(
+            "Select forwarder address space"_i18n,
+            "36-bit (Default)", "39-bit", 0, [path](auto op_index){
+                if (op_index) {
+                    const auto address_space = *op_index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
+                    if (R_FAILED(homebrew::Menu::InstallHomebrewFromPath(path, address_space))) {
+                        log_write("failed to create forwarder\n");
+                    }
+                }
+            }
+        );
         return;
     }
 
