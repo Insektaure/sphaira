@@ -3,6 +3,7 @@
 #include "fs.hpp"
 
 #include "ui/menus/homebrew.hpp"
+#include "ui/forwarder_editor.hpp"
 #include "ui/menus/filebrowser.hpp"
 
 #include "ui/sidebar.hpp"
@@ -202,18 +203,37 @@ void Menu::InstallHomebrew() {
     const auto& nro = GetEntry();
     const auto path = nro.path;
     auto icon = nro_get_icon(nro.path, nro.icon_size, nro.icon_offset);
+    ShowForwarderForm(path, std::move(icon));
+}
 
-    App::Push<OptionBox>(
-        "Select forwarder address space"_i18n,
-        "36-bit (Default)", "39-bit", 0, [path, icon = std::move(icon)](auto op_index){
-            if (op_index) {
-                const auto address_space = *op_index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
-                if (R_FAILED(InstallHomebrew(path, icon, address_space))) {
-                    log_write("failed to create forwarder\n");
-                }
-            }
+void Menu::CustomizeHomebrew() {
+    const auto path = GetEntry().path;
+    auto icon = nro_get_icon(path, GetEntry().icon_size, GetEntry().icon_offset);
+    if (icon.empty()) {
+        App::Notify("This homebrew does not contain a customizable icon"_i18n);
+        return;
+    }
+
+    forwarder::Config editor{};
+    editor.values.title = GetEntry().GetName();
+    editor.values.icon = std::move(icon);
+    editor.icon_source = "NRO Icon"_i18n;
+    editor.steam_query = GetEntry().GetName();
+    editor.screen_title = "Customize Homebrew"_i18n;
+    editor.title_label = "Homebrew Name"_i18n;
+    editor.submit_label = "Save Changes"_i18n;
+    editor.show_forwarder_options = false;
+    editor.on_create = [path](const forwarder::Values& values) {
+        if (R_FAILED(nro_update_info(path, values.title, values.icon))) {
+            App::Notify("Failed to save NRO information"_i18n);
+            return false;
         }
-    );
+
+        SignalChange();
+        App::Notify("Homebrew name and icon saved successfully."_i18n);
+        return true;
+    };
+    forwarder::Show(std::move(editor));
 }
 
 void Menu::ScanHomebrew() {
@@ -442,6 +462,46 @@ Result Menu::InstallHomebrewFromPath(const fs::FsPath& path, ForwarderAddressSpa
     return InstallHomebrew(path, nro_get_icon(path), address_space);
 }
 
+void Menu::ShowForwarderForm(const fs::FsPath& path, std::vector<u8> icon) {
+    NroEntry nro{};
+    NacpStruct nacp{};
+    if (R_FAILED(nro_parse(path, nro)) || R_FAILED(nro_get_nacp(path, nacp))) {
+        App::Notify("Failed to parse nro"_i18n);
+        return;
+    }
+
+    if (icon.empty()) {
+        icon = nro_get_icon(path, nro.icon_size, nro.icon_offset);
+    }
+
+    forwarder::Config editor{};
+    editor.values.title = nro.GetName();
+    editor.values.author = nro.GetAuthor();
+    editor.values.version = nacp.display_version;
+    editor.values.icon = std::move(icon);
+    editor.icon_source = "NRO Icon"_i18n;
+    editor.on_create = [path, nacp](const forwarder::Values& values) mutable {
+        OwoConfig config{};
+        config.nro_path = path.toString();
+        config.name = values.title;
+        config.author = values.author;
+        config.nacp = nacp;
+        config.icon = values.icon;
+        config.profile_selection = values.profile_selection;
+        config.address_space = values.address_space;
+        config.screenshot = values.screenshot;
+        config.video_capture = values.video_capture;
+        config.svc_debug_mode = values.svc_debug_mode;
+
+        if (R_FAILED(App::Install(config))) {
+            App::Notify("Failed to install forwarder"_i18n);
+            return false;
+        }
+        return true;
+    };
+    forwarder::Show(std::move(editor));
+}
+
 void Menu::DisplayOptions() {
     auto options = std::make_unique<Sidebar>("Homebrew Options"_i18n, Sidebar::Side::RIGHT);
     ON_SCOPE_EXIT(App::Push(std::move(options)));
@@ -501,6 +561,11 @@ void Menu::DisplayOptions() {
 
         });
         #endif
+
+        auto customize_entry = options->Add<SidebarEntryCallback>("Customize Homebrew"_i18n, [this](){
+            CustomizeHomebrew();
+        }, true, "Change the name and icon embedded in the selected NRO."_i18n);
+        customize_entry->Depends([this](){ return GetEntry().is_nacp_valid; }, "This NRO does not contain editable application information."_i18n);
 
         options->Add<SidebarEntryBool>("Hide"_i18n, GetEntry().hbini.hidden, [this](bool& v_out){
             ini_putl(GetEntry().path, "hidden", v_out, App::PLAYLOG_PATH);

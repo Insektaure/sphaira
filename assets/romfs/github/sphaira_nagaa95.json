@@ -1,0 +1,11 @@
+{
+    "name": "sphaira By naga",
+    "url": "https://github.com/NaGaa95/sphaira",
+    "assets": [
+        {
+            "name": "sphaira.nro",
+            "path": "/switch/sphaira/sphaira.nro",
+            "post_install_message": "Sphaira By NaGaa95 updated. Restart Sphaira to use the new version."
+        }
+    ]
+}

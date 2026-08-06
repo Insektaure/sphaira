@@ -1609,6 +1609,10 @@ App::App(const char* argv0) {
             m_fs->CreateDirectory("/config/sphaira/github");
             m_fs->CreateDirectory("/config/sphaira/i18n");
             m_fs->CreateDirectory("/config/sphaira/mount");
+
+            if (!ini_haskey("steamgriddb", "api_key", CONFIG_PATH)) {
+                ini_puts("steamgriddb", "api_key", "", CONFIG_PATH);
+            }
         }
 
         {
@@ -1968,8 +1972,7 @@ void App::DisplayThemeOptions(bool left_side) {
 
     options->Add<ui::SidebarEntryBool>("Show IP address"_i18n, App::GetApp()->m_show_ip_addr,
         i18n::get("display_ip_info",
-            "Shows the IP address in all menus, including the WiFi strength.\n\n"
-            "NOTE: The IP address will be hidden in applet mode due to the applet warning being displayed in it's place."
+            "Shows the IP address, WiFi strength, and connection type in all menus, including Applet Mode."
         )
     );
 

@@ -49,6 +49,7 @@ struct Menu final : grid::Menu {
 
     static Result InstallHomebrew(const fs::FsPath& path, const std::vector<u8>& icon, ForwarderAddressSpace address_space = ForwarderAddressSpace::Bit36);
     static Result InstallHomebrewFromPath(const fs::FsPath& path, ForwarderAddressSpace address_space = ForwarderAddressSpace::Bit36);
+    static void ShowForwarderForm(const fs::FsPath& path, std::vector<u8> icon = {});
 
     auto GetEntry(s64 i) -> NroEntry& {
         return m_entries[m_entries_current[i]];
@@ -61,6 +62,7 @@ struct Menu final : grid::Menu {
 private:
     void SetIndex(s64 index);
     void InstallHomebrew();
+    void CustomizeHomebrew();
     void ScanHomebrew();
     void Sort();
     void SortAndFindLastFile(bool scan = false);

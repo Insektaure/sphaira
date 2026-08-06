@@ -112,6 +112,8 @@ auto GetCodeMessage(Result rc) -> const char* {
         case Result_ThemezerFailedToDownloadThemeMeta: return "SphairaError_ThemezerFailedToDownloadThemeMeta";
         case Result_ThemezerFailedToDownloadTheme: return "SphairaError_ThemezerFailedToDownloadTheme";
         case Result_MainFailedToDownloadUpdate: return "SphairaError_MainFailedToDownloadUpdate";
+        case Result_MainDownloadedUpdateInvalid: return "SphairaError_MainDownloadedUpdateInvalid";
+        case Result_MainFailedToInstallUpdate: return "SphairaError_MainFailedToInstallUpdate";
         case Result_UsbDsBadDeviceSpeed: return "SphairaError_UsbDsBadDeviceSpeed";
         case Result_NcaBadMagic: return "SphairaError_NcaBadMagic";
         case Result_NspBadMagic: return "SphairaError_NspBadMagic";

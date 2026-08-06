@@ -2,6 +2,7 @@
 #include "defines.hpp"
 #include "ui/types.hpp"
 #include "log.hpp"
+#include "app.hpp"
 
 #include "yati/nx/ns.hpp"
 #include "yati/nx/nca.hpp"
@@ -17,6 +18,7 @@
 
 #include <nxtc.h>
 #include <minIni.h>
+#include <zlib.h>
 
 namespace sphaira::title {
 namespace {
@@ -132,6 +134,81 @@ Result LoadControlManual(u64 id, NacpStruct& nacp, ThreadResultData* data) {
 
     log_write("\t\t[manual control] time taken: %.2fs %zums\n", ts.GetSecondsD(), ts.GetMs());
     R_SUCCEED();
+}
+
+// HOS 21.0.0 introduced a compressed title-language table while keeping the
+// NACP binary size and offsets stable. This project currently builds against a
+// libnx NacpStruct which predates the named fields, so access the two new fields
+// by their documented on-disk offsets. This also remains compatible with newer
+// libnx headers.
+void NormalizeNacpLangData(NacpStruct& nacp) {
+    static constexpr size_t LanguageDataSize = 0x3000;
+    static constexpr size_t TitlesDataFormatOffset = 0x3215;
+    static constexpr size_t CompressedBufferOffset = sizeof(u16);
+    static constexpr size_t DecompressedLanguageCount = 32;
+    static constexpr size_t LegacyLanguageCount = 16;
+
+    static_assert(sizeof(NacpStruct) > TitlesDataFormatOffset);
+    static_assert(sizeof(NacpLanguageEntry) * LegacyLanguageCount == LanguageDataSize);
+
+    auto* raw = reinterpret_cast<u8*>(&nacp);
+    if (raw[TitlesDataFormatOffset] != 1) {
+        return;
+    }
+
+    u16 compressed_size{};
+    std::memcpy(&compressed_size, raw, sizeof(compressed_size));
+    if (!compressed_size || compressed_size > LanguageDataSize - CompressedBufferOffset) {
+        log_write("[NACP] invalid compressed title data size: %u\n", static_cast<unsigned>(compressed_size));
+        return;
+    }
+
+    auto decompressed = std::make_unique<NacpLanguageEntry[]>(DecompressedLanguageCount);
+    std::memset(decompressed.get(), 0, sizeof(NacpLanguageEntry) * DecompressedLanguageCount);
+
+    z_stream stream{};
+    if (inflateInit2(&stream, -15) != Z_OK) {
+        log_write("[NACP] failed to initialize title data decompression\n");
+        return;
+    }
+
+    stream.next_in = raw + CompressedBufferOffset;
+    stream.avail_in = compressed_size;
+    stream.next_out = reinterpret_cast<Bytef*>(decompressed.get());
+    stream.avail_out = sizeof(NacpLanguageEntry) * DecompressedLanguageCount;
+    const int inflate_result = inflate(&stream, Z_FINISH);
+    inflateEnd(&stream);
+
+    if (inflate_result != Z_STREAM_END) {
+        log_write("[NACP] failed to decompress title data: %d\n", inflate_result);
+        return;
+    }
+
+    bool has_legacy_language{};
+    for (size_t i = 0; i < LegacyLanguageCount; i++) {
+        if (decompressed[i].name[0]) {
+            has_legacy_language = true;
+            break;
+        }
+    }
+
+    std::memset(raw, 0, LanguageDataSize);
+    if (has_legacy_language) {
+        // Preserve all legacy language slots so nsGetApplicationDesiredLanguage
+        // can still select the user's system language.
+        std::memcpy(raw, decompressed.get(), LanguageDataSize);
+    } else {
+        // Future formats may only populate one of the extra slots. Keep a
+        // readable fallback in slot zero for older libnx versions.
+        for (size_t i = LegacyLanguageCount; i < DecompressedLanguageCount; i++) {
+            if (decompressed[i].name[0]) {
+                std::memcpy(raw, &decompressed[i], sizeof(NacpLanguageEntry));
+                break;
+            }
+        }
+    }
+
+    raw[TitlesDataFormatOffset] = 0;
 }
 
 ThreadData::ThreadData(bool title_cache) : m_title_cache{title_cache} {
@@ -305,6 +382,8 @@ auto ThreadData::Get(u64 app_id, bool* cached) -> ThreadResultData* {
         if (!has_nacp) {
             FakeNacpEntry(result.get());
         } else {
+            NormalizeNacpLangData(control->nacp);
+
             bool valid = true;
             NacpLanguageEntry* lang;
             if (R_SUCCEEDED(nsGetApplicationDesiredLanguage(&control->nacp, &lang)) && lang) {
@@ -383,10 +462,17 @@ auto ThreadData::Get(u64 app_id, bool* cached) -> ThreadResultData* {
 void ThreadFunc(void* user) {
     auto data = static_cast<ThreadData*>(user);
 
-    if (data->IsTitleCacheEnabled() && !nxtcInitialize()) {
+    const bool cache_initialized = !data->IsTitleCacheEnabled() || nxtcInitialize();
+    if (!cache_initialized) {
         log_write("[NXTC] failed to init cache\n");
     }
     ON_SCOPE_EXIT(nxtcExit());
+
+    if (data->IsTitleCacheEnabled() && cache_initialized && !ini_getbool("cache", "nacp_format1_fix_v1", false, App::CONFIG_PATH)) {
+        log_write("[NXTC] clearing cached titles for compressed NACP support\n");
+        nxtcWipeCache();
+        ini_putl("cache", "nacp_format1_fix_v1", 1, App::CONFIG_PATH);
+    }
 
     while (data->IsRunning()) {
         data->Run();

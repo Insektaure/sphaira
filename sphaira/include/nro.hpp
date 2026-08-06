@@ -72,6 +72,7 @@ auto nro_scan(const fs::FsPath& path, std::vector<NroEntry>& nros, bool nested =
 auto nro_get_icon(const fs::FsPath& path, u64 size, u64 offset) -> std::vector<u8>;
 auto nro_get_icon(const fs::FsPath& path) -> std::vector<u8>;
 auto nro_get_nacp(const fs::FsPath& path, NacpStruct& nacp) -> Result;
+auto nro_update_info(const fs::FsPath& path, std::string_view name, std::span<const u8> icon) -> Result;
 
 // path is pre-appended to args, such that argv[0] == path
 auto nro_launch(std::string path, std::string args = {}) -> Result;

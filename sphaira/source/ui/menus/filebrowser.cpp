@@ -9,6 +9,7 @@
 #include "ui/progress_box.hpp"
 #include "ui/error_box.hpp"
 #include "ui/music_player.hpp"
+#include "ui/forwarder_editor.hpp"
 
 #include "utils/utils.hpp"
 #include "utils/devoptab.hpp"
@@ -53,27 +54,6 @@ namespace sphaira::ui::menu::filebrowser {
 namespace {
 
 using RomDatabaseIndexs = std::vector<size_t>;
-
-struct ForwarderForm final : public FormSidebar {
-    explicit ForwarderForm(const FileAssocEntry& assoc, const RomDatabaseIndexs& db_indexs, const FileEntry& entry, const fs::FsPath& arg_path);
-
-private:
-    auto LoadNroMeta() -> Result;
-
-private:
-    const FileAssocEntry m_assoc;
-    const RomDatabaseIndexs m_db_indexs;
-    const fs::FsPath m_arg_path;
-
-    NroEntry m_nro{};
-    NacpStruct m_nacp{};
-
-    SidebarEntryTextInput* m_name{};
-    SidebarEntryTextInput* m_author{};
-    SidebarEntryTextInput* m_version{};
-    SidebarEntryFilePicker* m_icon{};
-    ForwarderAddressSpace m_address_space{ForwarderAddressSpace::Bit36};
-};
 
 std::atomic_bool g_change_signalled{};
 
@@ -289,20 +269,17 @@ auto GetRomIcon(std::string filename, const RomDatabaseIndexs& db_indexs, const 
     return nro_get_icon(nro.path, nro.icon_size, nro.icon_offset);
 }
 
-ForwarderForm::ForwarderForm(const FileAssocEntry& assoc, const RomDatabaseIndexs& db_indexs, const FileEntry& entry, const fs::FsPath& arg_path)
-: FormSidebar{"Forwarder Creation"}
-, m_assoc{assoc}
-, m_db_indexs{db_indexs}
-, m_arg_path{arg_path} {
+void ShowForwarderEditor(const FileAssocEntry& assoc, const RomDatabaseIndexs& db_indexs, const FileEntry& entry, const fs::FsPath& arg_path) {
+    NroEntry nro{};
+    NacpStruct nacp{};
     log_write("parsing nro\n");
-    if (R_FAILED(LoadNroMeta())) {
+    if (R_FAILED(nro_parse(assoc.path, nro)) || R_FAILED(nro_get_nacp(assoc.path, nacp))) {
         App::Notify("Failed to parse nro"_i18n);
-        SetPop();
         return;
     }
 
     log_write("got nro data\n");
-    auto file_name = m_assoc.use_base_name ? entry.GetName() : entry.GetInternalName();
+    auto file_name = assoc.use_base_name ? entry.GetName() : entry.GetInternalName();
 
     if (auto pos = file_name.find_last_of('.'); pos != std::string::npos) {
         log_write("got filename\n");
@@ -310,74 +287,32 @@ ForwarderForm::ForwarderForm(const FileAssocEntry& assoc, const RomDatabaseIndex
         log_write("got filename2: %s\n\n", file_name.c_str());
     }
 
-    const auto name = m_nro.nacp.lang.name + std::string{" | "} + file_name;
-    const auto author = m_nacp.lang[0].author;
-    const auto version = m_nacp.display_version;
-    const auto icon = m_assoc.path;
-
-    m_name = this->Add<SidebarEntryTextInput>(
-        "Name"_i18n, name, "", "", -1, sizeof(NacpLanguageEntry::name) - 1,
-        "Set the name of the application"_i18n
-    );
-
-    m_author = this->Add<SidebarEntryTextInput>(
-        "Author"_i18n, author, "", "", -1, sizeof(NacpLanguageEntry::author) - 1,
-        "Set the author of the application"_i18n
-    );
-
-    m_version = this->Add<SidebarEntryTextInput>(
-        "Version"_i18n, version, "", "", -1, sizeof(NacpStruct::display_version) - 1,
-        "Set the display version of the application"_i18n
-    );
-
-    const std::vector<std::string> filters{"nro", "png", "jpg"};
-    m_icon = this->Add<SidebarEntryFilePicker>(
-        "Icon"_i18n, icon, filters,
-        "Set the path to the icon for the forwarder"_i18n
-    );
-
-    SidebarEntryArray::Items address_space_items{"36-bit (Default)", "39-bit"};
-    this->Add<SidebarEntryArray>(
-        "Address Space"_i18n, address_space_items, [this](s64& index){
-            m_address_space = index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
-        }, 0, "Select the address space mode for the forwarder"_i18n
-    );
-
-    auto callback = this->Add<SidebarEntryCallback>("Create", [this, file_name](){
+    forwarder::Config editor{};
+    editor.values.title = nro.nacp.lang.name + std::string{" | "} + file_name;
+    editor.values.author = nacp.lang[0].author;
+    editor.values.version = nacp.display_version;
+    editor.values.icon = GetRomIcon(file_name, db_indexs, nro);
+    editor.icon_source = db_indexs.empty() ? "NRO Icon"_i18n : "ROM Artwork"_i18n;
+    editor.steam_query = file_name;
+    editor.show_author = true;
+    editor.show_version = true;
+    editor.on_create = [assoc, arg_path, nacp, has_rom_logo = !db_indexs.empty()](const forwarder::Values& values) mutable {
         OwoConfig config{};
-        config.nro_path = m_assoc.path.toString();
-        config.args = nro_add_arg_file(m_arg_path);
-        config.nacp = m_nacp;
-        config.address_space = m_address_space;
-
-        // patch the name.
-        config.name = m_name->GetValue();
-
-        // patch the author.
-        config.author = m_author->GetValue();
-
-        // patch the display version.
-        std::snprintf(config.nacp.display_version, sizeof(config.nacp.display_version), "%s", m_version->GetValue().c_str());
-
-        // load icon fron nro or image.
-        if (m_icon->GetValue().ends_with(".nro")) {
-            // if path was left as the default, try and load the icon from rom db.
-            if (config.nro_path == m_icon->GetValue()) {
-                config.icon = GetRomIcon(file_name, m_db_indexs, m_nro);
-            } else {
-                config.icon = nro_get_icon(m_icon->GetValue());
-            }
-        } else {
-            // try and read icon file into memory, bail if this fails.
-            const auto rc = fs::FsStdio().read_entire_file(m_icon->GetValue(), config.icon);
-            if (R_FAILED(rc)) {
-                App::PushErrorBox(rc, "Failed to load icon"_i18n);
-                return;
-            }
-        }
+        config.nro_path = assoc.path.toString();
+        config.args = nro_add_arg_file(arg_path);
+        config.nacp = nacp;
+        config.name = values.title;
+        config.author = values.author;
+        config.icon = values.icon;
+        config.profile_selection = values.profile_selection;
+        config.address_space = values.address_space;
+        config.screenshot = values.screenshot;
+        config.video_capture = values.video_capture;
+        config.svc_debug_mode = values.svc_debug_mode;
+        std::snprintf(config.nacp.display_version, sizeof(config.nacp.display_version), "%s", values.version.c_str());
 
         // if this is a rom, load intro logo.
-        if (!m_db_indexs.empty()) {
+        if (has_rom_logo) {
             fs::FsNativeSd().read_entire_file("/config/sphaira/logo/rom/NintendoLogo.png", config.logo);
             fs::FsNativeSd().read_entire_file("/config/sphaira/logo/rom/StartupMovie.gif", config.gif);
         }
@@ -385,26 +320,11 @@ ForwarderForm::ForwarderForm(const FileAssocEntry& assoc, const RomDatabaseIndex
         // try and install.
         if (R_FAILED(App::Install(config))) {
             App::Notify("Failed to install forwarder"_i18n);
-        } else {
-            SetPop();
+            return false;
         }
-    }, "Create the forwarder."_i18n);
-
-    // ensure that all fields are valid.
-    callback->Depends([this](){
-        return
-            !m_name->GetValue().empty() &&
-            !m_author->GetValue().empty() &&
-            !m_version->GetValue().empty() &&
-            !m_icon->GetValue().empty();
-    }, "All fields must be non-empty!"_i18n);
-}
-
-auto ForwarderForm::LoadNroMeta() -> Result {
-    // try and load nro meta data.
-    R_TRY(nro_parse(m_assoc.path, m_nro));
-    R_TRY(nro_get_nacp(m_assoc.path, m_nacp));
-    R_SUCCEED();
+        return true;
+    };
+    forwarder::Show(std::move(editor));
 }
 
 } // namespace
@@ -837,17 +757,7 @@ void FsView::SetIndex(s64 index) {
 void FsView::InstallForwarder() {
     if (IsSamePath(GetEntry().GetExtension(), "nro")) {
         const auto path = GetNewPathCurrent();
-        App::Push<OptionBox>(
-            "Select forwarder address space"_i18n,
-            "36-bit (Default)", "39-bit", 0, [path](auto op_index){
-                if (op_index) {
-                    const auto address_space = *op_index == 0 ? ForwarderAddressSpace::Bit36 : ForwarderAddressSpace::Bit39;
-                    if (R_FAILED(homebrew::Menu::InstallHomebrewFromPath(path, address_space))) {
-                        log_write("failed to create forwarder\n");
-                    }
-                }
-            }
-        );
+        homebrew::Menu::ShowForwarderForm(path);
         return;
     }
 
@@ -867,7 +777,7 @@ void FsView::InstallForwarder() {
         title, items, [this, assoc_list](auto op_index){
             if (op_index) {
                 const auto assoc = assoc_list[*op_index];
-                App::Push<ForwarderForm>(assoc, GetRomDatabaseFromPath(m_path), GetEntry(), GetNewPathCurrent());
+                ShowForwarderEditor(assoc, GetRomDatabaseFromPath(m_path), GetEntry(), GetNewPathCurrent());
             } else {
                 log_write("pressed B to skip launch...\n");
             }
@@ -1906,7 +1816,7 @@ void FsView::DisplayAdvancedOptions() {
     }
 
     if (m_entries_current.size() && !m_selected_count && GetEntry().IsFile() && GetEntry().file_size < 1024*64) {
-        options->Add<SidebarEntryCallback>("View as text (unfinished)"_i18n, [this](){
+        options->Add<SidebarEntryCallback>("Edit as text"_i18n, [this](){
             App::Push<fileview::Menu>(GetFs(), GetNewPathCurrent());
         });
     }

@@ -589,6 +589,8 @@ enum class SphairaResult : Result {
     ThemezerFailedToDownloadTheme,
 
     MainFailedToDownloadUpdate,
+    MainDownloadedUpdateInvalid,
+    MainFailedToInstallUpdate,
 
     UsbDsBadDeviceSpeed,
 
@@ -756,6 +758,8 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadThemeMeta),
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadTheme),
     MAKE_SPHAIRA_RESULT_ENUM(MainFailedToDownloadUpdate),
+    MAKE_SPHAIRA_RESULT_ENUM(MainDownloadedUpdateInvalid),
+    MAKE_SPHAIRA_RESULT_ENUM(MainFailedToInstallUpdate),
     MAKE_SPHAIRA_RESULT_ENUM(UsbDsBadDeviceSpeed),
 
     MAKE_SPHAIRA_RESULT_ENUM(NspBadMagic),

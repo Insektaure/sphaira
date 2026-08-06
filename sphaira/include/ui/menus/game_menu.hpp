@@ -10,6 +10,7 @@
 #include "fs.hpp"
 #include "option.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 #include <span>
 
@@ -21,6 +22,9 @@ struct Entry {
     NacpLanguageEntry lang{};
     int image{};
     bool selected{};
+    u64 last_played{};
+    u64 playtime{};
+    std::vector<u64> user_playtimes{};
     title::NacpLoadStatus status{title::NacpLoadStatus::None};
 
     auto GetName() const -> const char* {
@@ -34,6 +38,10 @@ struct Entry {
 
 enum SortType {
     SortType_Updated,
+    SortType_Title,
+    SortType_TitleID,
+    SortType_LastPlayed,
+    SortType_TotalPlayTime,
 };
 
 enum OrderType {
@@ -57,10 +65,13 @@ struct Menu final : grid::Menu {
 private:
     void SetIndex(s64 index);
     void ScanHomebrew();
+    void Filter();
     void Sort();
     void SortAndFindLastFile(bool scan);
     void FreeEntries();
     void OnLayoutChange();
+    void LoadPlaytime();
+    void SyncEntryToMaster(const Entry& entry);
 
     auto GetSelectedEntries() const {
         std::vector<Entry> out;
@@ -95,11 +106,15 @@ private:
     static constexpr inline const char* INI_SECTION_DUMP = "dump";
 
     std::vector<Entry> m_entries{};
+    std::vector<Entry> m_all_entries{};
+    std::string m_search_query{};
+    std::vector<AccountProfileBase> m_accounts{};
     s64 m_index{}; // where i am in the array
     s64 m_selected_count{};
     std::unique_ptr<List> m_list{};
     bool m_is_reversed{};
     bool m_dirty{};
+    bool m_pdm_initialized{};
 
     // use for detection game card removal to force a refresh.
     Event m_gc_event{};

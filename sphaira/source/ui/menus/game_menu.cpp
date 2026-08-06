@@ -31,6 +31,7 @@
 #include <utility>
 #include <cstring>
 #include <algorithm>
+#include <cctype>
 #include <minIni.h>
 
 namespace sphaira::ui::menu::game {
@@ -324,6 +325,18 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
             auto options = std::make_unique<Sidebar>("Game Options"_i18n, Sidebar::Side::RIGHT);
             ON_SCOPE_EXIT(App::Push(std::move(options)));
 
+            if (!m_all_entries.empty() || !m_search_query.empty()) {
+                options->Add<SidebarEntryCallback>("Search"_i18n, [this](){
+                    std::string out;
+                    if (R_SUCCEEDED(swkbd::ShowText(out, "Search"_i18n.c_str(), "Enter title name..."_i18n.c_str(), m_search_query.c_str()))) {
+                        m_search_query = std::move(out);
+                        Filter();
+                        SortAndFindLastFile(false);
+                        ClearSelection();
+                    }
+                }, true);
+            }
+
             if (m_entries.size()) {
                 options->Add<SidebarEntryCallback>("Sort By"_i18n, [this](){
                     auto options = std::make_unique<Sidebar>("Sort Options"_i18n, Sidebar::Side::RIGHT);
@@ -331,6 +344,10 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
 
                     SidebarEntryArray::Items sort_items;
                     sort_items.push_back("Updated"_i18n);
+                    sort_items.push_back("Title"_i18n);
+                    sort_items.push_back("Title ID"_i18n);
+                    sort_items.push_back("Last played"_i18n);
+                    sort_items.push_back("Total playtime"_i18n);
 
                     SidebarEntryArray::Items order_items;
                     order_items.push_back("Descending"_i18n);
@@ -342,8 +359,12 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     layout_items.push_back("Grid"_i18n);
 
                     options->Add<SidebarEntryArray>("Sort"_i18n, sort_items, [this](s64& index_out){
-                        m_sort.Set(index_out);
-                        SortAndFindLastFile(false);
+                        if (index_out == SortType_TotalPlayTime) {
+                            LoadPlaytime();
+                        } else {
+                            m_sort.Set(index_out);
+                            SortAndFindLastFile(false);
+                        }
                     }, m_sort.Get());
 
                     options->Add<SidebarEntryArray>("Order"_i18n, order_items, [this](s64& index_out){
@@ -370,6 +391,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     const auto random_index = randomGet64() % std::size(m_entries);
                     auto& e = m_entries[random_index];
                     LoadControlEntry(e, true);
+                    SyncEntryToMaster(e);
 
                     App::Push<OptionBox>(
                         i18n::Reorder("Launch ", e.GetName()) + '?',
@@ -464,6 +486,10 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
     ns::Initialize();
     es::Initialize();
     title::Init();
+    m_pdm_initialized = R_SUCCEEDED(pdmqryInitialize());
+    if (!m_pdm_initialized) {
+        log_write("[PDM] failed to initialize pdm:qry; play statistics will be unavailable\n");
+    }
 
     fsOpenGameCardDetectionEventNotifier(std::addressof(m_gc_event_notifier));
     fsEventNotifierGetEventHandle(std::addressof(m_gc_event_notifier), std::addressof(m_gc_event), true);
@@ -473,6 +499,9 @@ Menu::~Menu() {
     title::Exit();
 
     FreeEntries();
+    if (m_pdm_initialized) {
+        pdmqryExit();
+    }
     ns::Exit();
     es::Exit();
 
@@ -535,6 +564,8 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
             }
         }
 
+        SyncEntryToMaster(e);
+
         char title_id[33];
         std::snprintf(title_id, sizeof(title_id), "%016lX", e.app_id);
 
@@ -550,20 +581,97 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
 
 void Menu::OnFocusGained() {
     MenuBase::OnFocusGained();
-    if (m_entries.empty()) {
+    if (m_all_entries.empty()) {
         ScanHomebrew();
     }
 }
 
 void Menu::SetIndex(s64 index) {
+    if (m_entries.empty()) {
+        m_index = 0;
+        SetTitleSubHeading("");
+        this->SetSubHeading("0 / 0");
+        return;
+    }
+
     m_index = index;
     if (!m_index) {
         m_list->SetYoff(0);
     }
 
+    auto& entry = m_entries[m_index];
     char title_id[33];
-    std::snprintf(title_id, sizeof(title_id), "%016lX", m_entries[m_index].app_id);
-    SetTitleSubHeading(title_id);
+    std::snprintf(title_id, sizeof(title_id), "%016lX", entry.app_id);
+
+    char section[33];
+    std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
+
+    const auto cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
+    if (m_pdm_initialized && (entry.last_played != cached_last_played || entry.user_playtimes.empty())) {
+        if (m_accounts.empty()) {
+            m_accounts = App::GetAccountList();
+        }
+
+        u64 total_playtime{};
+        entry.user_playtimes.clear();
+        for (size_t i = 0; i < m_accounts.size(); i++) {
+            PdmPlayStatistics stats{};
+            u64 user_playtime{};
+            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(entry.app_id, m_accounts[i].uid, true, &stats))) {
+                user_playtime = stats.playtime;
+            }
+
+            total_playtime += user_playtime;
+            entry.user_playtimes.push_back(user_playtime);
+
+            char key[32];
+            std::snprintf(key, sizeof(key), "user_%zu_mins", i);
+            ini_putl(section, key, user_playtime / 60000000000ULL, App::PLAYLOG_PATH);
+        }
+
+        if (!total_playtime) {
+            PdmPlayStatistics stats{};
+            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationId(entry.app_id, true, &stats))) {
+                total_playtime = stats.playtime;
+                if (entry.user_playtimes.empty()) {
+                    entry.user_playtimes.push_back(total_playtime);
+                }
+            }
+        }
+
+        entry.playtime = total_playtime;
+        ini_putl(section, "last_played", entry.last_played, App::PLAYLOG_PATH);
+        ini_putl(section, "playtime_mins", entry.playtime / 60000000000ULL, App::PLAYLOG_PATH);
+        SyncEntryToMaster(entry);
+    }
+
+    std::string title_info = title_id;
+    if (!entry.user_playtimes.empty()) {
+        bool showed_profile{};
+        if (entry.user_playtimes.size() > 1) {
+            for (size_t i = 0; i < entry.user_playtimes.size(); i++) {
+                if (!entry.user_playtimes[i]) {
+                    continue;
+                }
+
+                const u64 total_minutes = entry.user_playtimes[i] / 60000000000ULL;
+                title_info += " | P" + std::to_string(i + 1) + " " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+                showed_profile = true;
+            }
+        }
+
+        if (!showed_profile) {
+            const u64 total_minutes = entry.playtime / 60000000000ULL;
+            title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+        }
+    } else if (ini_haskey(section, "playtime_mins", App::PLAYLOG_PATH)) {
+        const u64 total_minutes = entry.playtime / 60000000000ULL;
+        title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+    } else {
+        title_info += " | " + "No statistics"_i18n;
+    }
+
+    SetTitleSubHeading(title_info);
     this->SetSubHeading(std::to_string(m_index + 1) + " / " + std::to_string(m_entries.size()));
 }
 
@@ -579,6 +687,10 @@ void Menu::ScanHomebrew() {
     m_entries.reserve(ENTRY_CHUNK_COUNT);
     g_change_signalled = false;
 
+    if (m_accounts.empty()) {
+        m_accounts = App::GetAccountList();
+    }
+
     std::vector<NsApplicationRecord> record_list(ENTRY_CHUNK_COUNT);
     s32 offset{};
     while (true) {
@@ -592,6 +704,10 @@ void Menu::ScanHomebrew() {
             break;
         }
 
+        std::vector<u64> batch_ids;
+        batch_ids.reserve(record_count);
+        const auto batch_start = m_entries.size();
+
         for (s32 i = 0; i < record_count; i++) {
             const auto& e = record_list[i];
 
@@ -599,49 +715,250 @@ void Menu::ScanHomebrew() {
                 continue;
             }
 
-            m_entries.emplace_back(e.application_id, e.last_event);
+            auto& entry = m_entries.emplace_back(e.application_id, e.last_event);
+            batch_ids.push_back(entry.app_id);
+
+            char section[33];
+            std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
+            const auto cached_minutes = ini_getl(section, "playtime_mins", -1, App::PLAYLOG_PATH);
+            if (cached_minutes >= 0) {
+                entry.playtime = static_cast<u64>(cached_minutes) * 60000000000ULL;
+                for (size_t user = 0; user < m_accounts.size(); user++) {
+                    char key[32];
+                    std::snprintf(key, sizeof(key), "user_%zu_mins", user);
+                    const auto user_minutes = ini_getl(section, key, -1, App::PLAYLOG_PATH);
+                    if (user_minutes >= 0) {
+                        entry.user_playtimes.push_back(static_cast<u64>(user_minutes) * 60000000000ULL);
+                    }
+                }
+            }
+        }
+
+        if (m_pdm_initialized && !batch_ids.empty()) {
+            std::vector<PdmLastPlayTime> play_times(batch_ids.size());
+            s32 play_time_count{};
+            if (R_SUCCEEDED(pdmqryQueryLastPlayTime(true, play_times.data(), batch_ids.data(), batch_ids.size(), &play_time_count))) {
+                for (s32 i = 0; i < play_time_count; i++) {
+                    const auto& play_time = play_times[i];
+                    if (!play_time.flag) {
+                        continue;
+                    }
+
+                    const auto it = std::find_if(m_entries.begin() + batch_start, m_entries.end(), [&play_time](const auto& entry) {
+                        return entry.app_id == play_time.application_id;
+                    });
+                    if (it != m_entries.end()) {
+                        it->last_played = pdmPlayTimestampToPosix(play_time.timestamp_user);
+                    }
+                }
+            }
         }
 
         offset += record_count;
     }
 
+    m_all_entries = m_entries;
     m_is_reversed = false;
     m_dirty = false;
-    log_write("games found: %zu time_taken: %.2f seconds %zu ms %zu ns\n", m_entries.size(), ts.GetSecondsD(), ts.GetMs(), ts.GetNs());
+    log_write("games found: %zu time_taken: %.2f seconds %zu ms %zu ns\n", m_all_entries.size(), ts.GetSecondsD(), ts.GetMs(), ts.GetNs());
+    this->Filter();
     this->Sort();
     SetIndex(0);
     ClearSelection();
 }
 
-void Menu::Sort() {
-    // const auto sort = m_sort.Get();
-    const auto order = m_order.Get();
+void Menu::Filter() {
+    if (m_search_query.empty()) {
+        m_entries = m_all_entries;
+        return;
+    }
 
-    if (order == OrderType_Ascending) {
-        if (!m_is_reversed) {
-            std::ranges::reverse(m_entries);
-            m_is_reversed = true;
-        }
-    } else {
-        if (m_is_reversed) {
-            std::ranges::reverse(m_entries);
-            m_is_reversed = false;
+    auto query = m_search_query;
+    std::ranges::transform(query, query.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    m_entries.clear();
+    for (auto& entry : m_all_entries) {
+        LoadControlEntry(entry);
+        auto name = std::string{entry.GetName()};
+        std::ranges::transform(name, name.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+
+        if (name.find(query) != std::string::npos) {
+            m_entries.push_back(entry);
         }
     }
 }
 
+void Menu::Sort() {
+    const auto sort = m_sort.Get();
+    const auto order = m_order.Get();
+
+    switch (sort) {
+        case SortType_Updated:
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                return lhs.last_event > rhs.last_event;
+            });
+            break;
+
+        case SortType_Title:
+            for (auto& entry : m_entries) {
+                LoadControlEntry(entry);
+                SyncEntryToMaster(entry);
+            }
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                return strcasecmp(lhs.GetName(), rhs.GetName()) > 0;
+            });
+            break;
+
+        case SortType_TitleID:
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                return lhs.app_id > rhs.app_id;
+            });
+            break;
+
+        case SortType_LastPlayed:
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                return lhs.last_played > rhs.last_played;
+            });
+            break;
+
+        case SortType_TotalPlayTime:
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                return lhs.playtime > rhs.playtime;
+            });
+            break;
+
+        default:
+            m_sort.Set(SortType_Updated);
+            Sort();
+            return;
+    }
+
+    if (order == OrderType_Ascending) {
+        std::ranges::reverse(m_entries);
+    }
+    m_is_reversed = order == OrderType_Ascending;
+}
+
+void Menu::SyncEntryToMaster(const Entry& entry) {
+    const auto it = std::ranges::find_if(m_all_entries, [&entry](const auto& candidate) {
+        return candidate.app_id == entry.app_id;
+    });
+    if (it != m_all_entries.end()) {
+        const bool selected = it->selected;
+        *it = entry;
+        it->selected = selected;
+    }
+}
+
+void Menu::LoadPlaytime() {
+    if (!m_pdm_initialized) {
+        App::Notify("Play statistics unavailable"_i18n);
+        return;
+    }
+
+    if (m_accounts.empty()) {
+        m_accounts = App::GetAccountList();
+    }
+
+    std::vector<size_t> update_indices;
+    for (size_t i = 0; i < m_all_entries.size(); i++) {
+        const auto& entry = m_all_entries[i];
+        char section[33];
+        std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
+        const auto cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
+        const auto cached_playtime = ini_getl(section, "playtime_mins", -1, App::PLAYLOG_PATH);
+        if (entry.last_played != cached_last_played || cached_playtime < 0 || entry.user_playtimes.empty()) {
+            update_indices.push_back(i);
+        }
+    }
+
+    if (update_indices.empty()) {
+        m_sort.Set(SortType_TotalPlayTime);
+        Filter();
+        SortAndFindLastFile(false);
+        return;
+    }
+
+    App::Push<ProgressBox>(0, "Updating play statistics"_i18n, "", [this, update_indices](auto pbox) -> Result {
+        pbox->UpdateTransfer(0, update_indices.size());
+
+        for (size_t i = 0; i < update_indices.size(); i++) {
+            R_TRY(pbox->ShouldExitResult());
+
+            auto& entry = m_all_entries[update_indices[i]];
+            char section[33];
+            std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
+
+            u64 total_playtime{};
+            entry.user_playtimes.clear();
+            for (size_t user = 0; user < m_accounts.size(); user++) {
+                PdmPlayStatistics stats{};
+                u64 user_playtime{};
+                if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(entry.app_id, m_accounts[user].uid, true, &stats))) {
+                    user_playtime = stats.playtime;
+                }
+
+                total_playtime += user_playtime;
+                entry.user_playtimes.push_back(user_playtime);
+
+                char key[32];
+                std::snprintf(key, sizeof(key), "user_%zu_mins", user);
+                ini_putl(section, key, user_playtime / 60000000000ULL, App::PLAYLOG_PATH);
+            }
+
+            if (!total_playtime) {
+                PdmPlayStatistics stats{};
+                if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationId(entry.app_id, true, &stats))) {
+                    total_playtime = stats.playtime;
+                    if (entry.user_playtimes.empty()) {
+                        entry.user_playtimes.push_back(total_playtime);
+                    }
+                }
+            }
+
+            entry.playtime = total_playtime;
+            ini_putl(section, "last_played", entry.last_played, App::PLAYLOG_PATH);
+            ini_putl(section, "playtime_mins", entry.playtime / 60000000000ULL, App::PLAYLOG_PATH);
+
+            pbox->SetTitle(std::to_string(i + 1) + " / " + std::to_string(update_indices.size()));
+            pbox->UpdateTransfer(i + 1, update_indices.size());
+        }
+
+        R_SUCCEED();
+    }, [this](Result rc) {
+        if (R_SUCCEEDED(rc)) {
+            m_sort.Set(SortType_TotalPlayTime);
+            Filter();
+            SortAndFindLastFile(false);
+        } else {
+            App::PushErrorBox(rc, "Failed to update play statistics!"_i18n);
+        }
+    });
+}
+
 void Menu::SortAndFindLastFile(bool scan) {
-    const auto app_id = m_entries[m_index].app_id;
+    const bool had_entry = !m_entries.empty();
+    const auto app_id = had_entry ? m_entries[m_index].app_id : 0;
     if (scan) {
         ScanHomebrew();
     } else {
         Sort();
     }
+
+    if (m_entries.empty()) {
+        SetIndex(0);
+        return;
+    }
+
     SetIndex(0);
 
     s64 index = -1;
     for (u64 i = 0; i < m_entries.size(); i++) {
-        if (app_id == m_entries[i].app_id) {
+        if (had_entry && app_id == m_entries[i].app_id) {
             index = i;
             break;
         }
@@ -663,11 +980,12 @@ void Menu::SortAndFindLastFile(bool scan) {
 void Menu::FreeEntries() {
     auto vg = App::GetVg();
 
-    for (auto&p : m_entries) {
+    for (auto&p : m_all_entries) {
         FreeEntry(vg, p);
     }
 
     m_entries.clear();
+    m_all_entries.clear();
 }
 
 void Menu::OnLayoutChange() {

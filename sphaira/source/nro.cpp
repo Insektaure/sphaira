@@ -234,6 +234,79 @@ auto nro_get_nacp(const fs::FsPath& path, NacpStruct& nacp) -> Result {
     R_SUCCEED();
 }
 
+auto nro_update_info(const fs::FsPath& path, std::string_view name, std::span<const u8> icon) -> Result {
+    R_UNLESS(!name.empty() && name.size() < sizeof(NacpLanguageEntry::name), Result_NroBadSize);
+    R_UNLESS(!icon.empty() && icon.size() <= 1024 * 1024, Result_NroBadSize);
+
+    fs::FsNativeSd fs;
+    std::vector<u8> original;
+    R_TRY(fs.read_entire_file(path, original));
+    R_UNLESS(original.size() >= sizeof(NroData), Result_NroBadSize);
+
+    NroData nro{};
+    std::memcpy(&nro, original.data(), sizeof(nro));
+    R_UNLESS(nro.header.magic == NROHEADER_MAGIC, Result_NroBadMagic);
+
+    const auto asset_base = static_cast<std::size_t>(nro.header.size);
+    R_UNLESS(asset_base <= original.size() && sizeof(NroAssetHeader) <= original.size() - asset_base, Result_NroBadSize);
+
+    NroAssetHeader asset{};
+    std::memcpy(&asset, original.data() + asset_base, sizeof(asset));
+    R_UNLESS(asset.magic == NROASSETHEADER_MAGIC, Result_NroBadMagic);
+
+    const auto section_valid = [&original, asset_base](const NroAssetSection& section) {
+        const auto tail_size = original.size() - asset_base;
+        return section.offset <= tail_size && section.size <= tail_size - section.offset;
+    };
+    R_UNLESS(section_valid(asset.nacp) && asset.nacp.size == sizeof(NacpStruct), Result_NroBadSize);
+    R_UNLESS(section_valid(asset.romfs), Result_NroBadSize);
+
+    NacpStruct nacp{};
+    std::memcpy(&nacp, original.data() + asset_base + asset.nacp.offset, sizeof(nacp));
+    for (auto& language : nacp.lang) {
+        std::memset(language.name, 0, sizeof(language.name));
+        std::memcpy(language.name, name.data(), name.size());
+    }
+
+    NroAssetHeader updated_asset = asset;
+    updated_asset.icon.offset = sizeof(NroAssetHeader);
+    updated_asset.icon.size = icon.size();
+    updated_asset.nacp.offset = updated_asset.icon.offset + updated_asset.icon.size;
+    updated_asset.nacp.size = sizeof(NacpStruct);
+    updated_asset.romfs.offset = updated_asset.nacp.offset + updated_asset.nacp.size;
+
+    const auto updated_size = asset_base + updated_asset.romfs.offset + updated_asset.romfs.size;
+    R_UNLESS(updated_size >= asset_base, Result_NroBadSize);
+
+    std::vector<u8> updated(updated_size);
+    std::memcpy(updated.data(), original.data(), asset_base);
+    std::memcpy(updated.data() + asset_base, &updated_asset, sizeof(updated_asset));
+    std::memcpy(updated.data() + asset_base + updated_asset.icon.offset, icon.data(), icon.size());
+    std::memcpy(updated.data() + asset_base + updated_asset.nacp.offset, &nacp, sizeof(nacp));
+    if (updated_asset.romfs.size) {
+        std::memcpy(
+            updated.data() + asset_base + updated_asset.romfs.offset,
+            original.data() + asset_base + asset.romfs.offset,
+            asset.romfs.size
+        );
+    }
+
+    const auto backup_name = path.toString() + ".sphaira.bak";
+    R_UNLESS(backup_name.size() < PATH_MAX, Result_NroBadSize);
+    const fs::FsPath backup_path{backup_name};
+
+    // Keep a complete recovery copy until the rebuilt NRO has been written.
+    R_TRY(fs.write_entire_file(backup_path, original));
+    const auto write_result = fs.write_entire_file(path, updated);
+    if (R_FAILED(write_result)) {
+        fs.write_entire_file(path, original);
+        return write_result;
+    }
+
+    fs.DeleteFile(backup_path);
+    R_SUCCEED();
+}
+
 auto nro_launch(std::string path, std::string args) -> Result {
     if (path.empty()) {
         return 1;

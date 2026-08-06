@@ -143,12 +143,16 @@ struct NpdmPatch {
     char product_code[0x10]{};
     u64 tid;
     ForwarderAddressSpace address_space{ForwarderAddressSpace::Bit36};
+    ForwarderSvcDebugMode svc_debug_mode{ForwarderSvcDebugMode::Automatic};
 };
 
 struct NcapPatch {
     std::string name;
     std::string author;
     u64 tid;
+    bool profile_selection{};
+    bool screenshot{true};
+    bool video_capture{true};
 };
 
 typedef struct romfs_dirent_ctx {
@@ -449,16 +453,32 @@ void patch_npdm(std::vector<u8>& npdm, const NpdmPatch& patch) {
     acid.program_id_min = patch.tid;
     acid.program_id_max = patch.tid;
 
-    // patch debug flags based on ams version
-    // SEE: https://github.com/ITotalJustice/sphaira/issues/67
-    u64 ver{};
-    splInitialize();
-    ON_SCOPE_EXIT(splExit());
-    const auto SplConfigItem_ExosphereVersion = (SplConfigItem)65000;
-    splGetConfig(SplConfigItem_ExosphereVersion, &ver);
-    ver >>= 40;
+    const auto enable_svc_debug = [&patch](){
+        if (patch.svc_debug_mode == ForwarderSvcDebugMode::Enabled) {
+            return true;
+        }
+        if (patch.svc_debug_mode == ForwarderSvcDebugMode::Disabled) {
+            return false;
+        }
 
-    if (ver >= MAKEHOSVERSION(1,8,0)) {
+        // Atmosphere 1.8.0 updated the NPDM MiscFlags layout for HOS 19.0.0.
+        // Preserve Sphaira's original behavior by selecting the new ForceDebug
+        // bit automatically when that version (or newer) is detected.
+        u64 ver{};
+        if (R_FAILED(splInitialize())) {
+            return false;
+        }
+        ON_SCOPE_EXIT(splExit());
+
+        const auto SplConfigItem_ExosphereVersion = (SplConfigItem)65000;
+        if (R_FAILED(splGetConfig(SplConfigItem_ExosphereVersion, &ver))) {
+            return false;
+        }
+        ver >>= 40;
+        return ver >= MAKEHOSVERSION(1,8,0);
+    }();
+
+    if (enable_svc_debug) {
         npdm_patch_kc(npdm, meta.aci0_offset + aci0.kac_offset, aci0.kac_size, 16, BIT(19));
         npdm_patch_kc(npdm, meta.acid_offset + acid.kac_offset, acid.kac_size, 16, BIT(19));
     }
@@ -477,18 +497,18 @@ void patch_nacp(NacpStruct& nacp, const NcapPatch& patch) {
     }
 
     // patch author
-    if (!patch.name.empty()) {
+    if (!patch.author.empty()) {
         for (auto& lang : nacp.lang) {
             std::strncpy(lang.author, patch.author.c_str(), sizeof(lang.author)-1);
         }
     }
 
     // misc
-    nacp.startup_user_account = 0x00; // skip user select prompt
+    nacp.startup_user_account = patch.profile_selection ? 0x01 : 0x00;
     nacp.user_account_switch_lock = 0x00; // allow account switch
     nacp.add_on_content_registration_type = 0x01; // on demand
-    nacp.screenshot = 0; // 0x0 = true
-    nacp.video_capture = 0x2; // auto
+    nacp.screenshot = patch.screenshot ? 0x0 : 0x1;
+    nacp.video_capture = patch.video_capture ? 0x2 : 0x0; // auto or disabled
     nacp.logo_type = 0x2; // Nintendo
     nacp.logo_handling = 0x0; // auto
     nacp.data_loss_confirmation = 0x0; // disable as we don't use saves
@@ -900,6 +920,7 @@ auto install_forwader_internal(ui::ProgressBox* pbox, OwoConfig& config, NcmStor
         NpdmPatch npdm_patch;
         npdm_patch.tid = tid;
         npdm_patch.address_space = config.address_space;
+        npdm_patch.svc_debug_mode = config.svc_debug_mode;
         patch_npdm(exefs[1].data, npdm_patch);
 
         nca_entries.emplace_back(
@@ -919,6 +940,9 @@ auto install_forwader_internal(ui::ProgressBox* pbox, OwoConfig& config, NcmStor
         nacp_patch.tid = tid;
         nacp_patch.name = config.name;
         nacp_patch.author = config.author;
+        nacp_patch.profile_selection = config.profile_selection;
+        nacp_patch.screenshot = config.screenshot;
+        nacp_patch.video_capture = config.video_capture;
         patch_nacp(config.nacp, nacp_patch);
 
         FileEntries romfs;
