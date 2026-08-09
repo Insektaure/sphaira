@@ -1962,37 +1962,32 @@ auto Base::FindFileAssocFor() -> std::vector<FileAssocEntry> {
     }
 
     std::vector<FileAssocEntry> out_entries;
-    if (!db_indexs.empty()) {
-        // if database isn't empty, then we are in a valid folder
-        // search for an entry that matches the db and ext
-        for (const auto& assoc : m_assoc_entries) {
-            for (const auto& assoc_db : assoc.database) {
-                // if (assoc_db == PATHS[db_idx].folder || assoc_db == PATHS[db_idx].database) {
-                for (auto db_idx : db_indexs) {
-                    if (PATHS[db_idx].IsDatabase(assoc_db)) {
-                        if (assoc.IsExtension(extension, internal_extension)) {
-                            out_entries.emplace_back(assoc);
-                            goto jump;
-                        }
-                    }
-                }
-            }
-            jump:
+    for (const auto& assoc : m_assoc_entries) {
+        if (!assoc.IsExtension(extension, internal_extension)) {
+            continue;
         }
-    } else {
-        // otherwise, if not in a valid folder, find an entry that doesn't
-        // use a database, ie, not a emulator.
-        // this is because media players and hbmenu can launch from anywhere
-        // and the extension is enough info to know what type of file it is.
-        // whereas with roms, a .iso can be used for multiple systems, so it needs
-        // to be in the correct folder, ie psx, to know what system that .iso is for.
-        for (const auto& assoc : m_assoc_entries) {
-            if (assoc.database.empty()) {
-                if (assoc.IsExtension(extension, internal_extension)) {
-                    log_write("found ext: %s\n", assoc.path.s);
-                    out_entries.emplace_back(assoc);
+
+        if (assoc.database.empty()) {
+            log_write("found global ext: %s\n", assoc.path.s);
+            out_entries.emplace_back(assoc);
+            continue;
+        }
+
+        bool database_matches{};
+        for (const auto& assoc_db : assoc.database) {
+            for (const auto db_idx : db_indexs) {
+                if (PATHS[db_idx].IsDatabase(assoc_db)) {
+                    database_matches = true;
+                    break;
                 }
             }
+            if (database_matches) {
+                break;
+            }
+        }
+
+        if (database_matches) {
+            out_entries.emplace_back(assoc);
         }
     }
 

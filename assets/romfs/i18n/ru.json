@@ -917,7 +917,7 @@
     "Возможна экспериментальная поддержка резервного копирования системных сохранений."
   ],
   "Download releases directly from GitHub. Custom entries can be added to /config/sphaira/github": [
-    "Загружает релизы напрямую с GitHub. Пользовательские записи можно добавить в каталог /config/sphaira/github":
+    "Загружает релизы напрямую с GitHub. Пользовательские записи можно добавить в каталог /config/sphaira/github"
   ],
   "Install apps via FTP.": "Установка приложений через FTP.",
   "MTP Install": "Установка по MTP",

@@ -7,7 +7,7 @@
     "L'installation est désactivée.\n",
     "Activez dans les options en sélectionnant Menu (Y) -> Avancé -> Options d'installation -> Activer."
   ],
-  "On": "Sur",
+  "On": "Activé",
   "Off": "Désactivé",
   "Entry": "Entrée",
   "Store": "AppStore",
@@ -22,7 +22,7 @@
   "Apps": "Applications",
   "IRS": "IRS",
   "MTP": "MTP",
-  "Saves": "Enregistre",
+  "Saves": "Sauvegardes",
   "USB": "Installation via USB",
   "Level 0 (no compression)": "Niveau 0 (pas de compression)",
   "Level 1": "Niveau 1",
@@ -61,7 +61,7 @@
     "Impossible de trouver /switch/hbmenu.nro",
     "Utilisez l'Appstore pour réinstaller hbmenu"
   ],
-  "OK": "D'accord",
+  "OK": "OK",
   "Failed to restore hbmenu, please re-download hbmenu": "Échec de la restauration du HBmenu, veuillez le réinstaller",
   "Failed to restore hbmenu, using sphaira instead": "Échec de la restauration de HBmenu, Sphaira sera utilisé à la place",
   "Restored hbmenu, closing sphaira": "Hbmenu restauré, fermeture de Sphaira",
@@ -1002,8 +1002,8 @@
     "Modifiez les options avancées. ",
     "Veuillez consulter les encadrés d’informations pour mieux comprendre chaque option."
   ],
-  "System %.1f GB": "Système %.1f GB",
-  "microSD %.1f GB": "microSD %.1f GB",
+  "System %.1f GB": "Système %.1f Go",
+  "microSD %.1f GB": "microSD %.1f Go",
   "[Applet Mode]": "[Mode Applet]",
   "Ethernet": "Ethernet",
   "No Internet": "Pas d'Internet",
