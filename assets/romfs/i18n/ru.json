@@ -1,8 +1,8 @@
 {
-  "Homebrew": "Домашнее пиво",
+  "Homebrew": "Хоумбрю",
   "FileBrowser": "Файлы",
   "Appstore": "Магазин приложений",
-  "Corrupted": "Испорченный",
+  "Corrupted": "Неисправно",
   "enable_install_info": [
     "Установка отключена.\n",
     "Включите в настройках, выбрав Меню (Y) -> Дополнительно -> Параметры установки -> Включить."
@@ -16,11 +16,11 @@
   "FTP": "FTP",
   "Games": "Игры",
   "Meta": "Мета",
-  "Nca": "Нка",
-  "GC": "ГК",
+  "Nca": "Nca",
+  "GC": "GC",
   "GitHub": "GitHub",
   "Apps": "Приложения",
-  "IRS": "Налоговое управление США",
+  "IRS": "IRS",
   "MTP": "MTP",
   "Saves": "Сохранения",
   "USB": "USB",
@@ -49,7 +49,7 @@
   "4 MB": "4 МБ",
   "8 MB": "8 МБ",
   "16 MB": "16 МБ",
-  "Switch-Handheld!": "Режим Портатива",
+  "Switch-Handheld!": "Портативный режим",
   "Switch-Docked!": "Режим Дока",
   "Nxlink Connected": "NXLink подключён",
   "Nxlink Upload": "NXLink отправка",
@@ -84,8 +84,8 @@
   ],
   "Show IP address": "Показать IP-адрес",
   "display_ip_info": [
-    "Shows the IP address in all menus, including the WiFi strength.\n",
-    "NOTE: The IP address will be hidden in applet mode due to the applet warning being displayed in it's place."
+    "Показывать IP адрес везде, включая силу сигнала WiFi.\n",
+    "ПРИМЕЧАНИЕ: IP адрес будет скрыт в режиме апплета из-за того, что вместо него отображается предупреждение апплета."
   ],
   "Remove Background Music": "Удалить фоновую музыку",
   "Removes the background music file": "Удаляет файл фоновой музыки",
@@ -97,7 +97,7 @@
   "Enter URL": "Введите URL",
   "web_browser_info": [
     "Запустите встроенный веб-браузер.\n",
-    "ПРИМЕЧАНИЕ. Браузер очень ограничен, некоторые веб-сайты не загружаются, и браузер закрывается по истечении 30 минут."
+    "ПРИМЕЧАНИЕ: Браузер очень ограничен, некоторые веб-сайты не загружаются, и браузер закрывается через 30 минут."
   ],
   "Advanced Options": "Дополнительные параметры",
   "Slow": "Медленная",
@@ -154,8 +154,8 @@
   "Skips installing titles / ncas if they're already installed.": "Пропускает установку тайтлов/ncas, если они уже установлены.",
   "Ticket only": "Только тикет",
   "Installs tickets only, useful if the title was already installed however the tickets were missing or corrupted.": [
-    "Устанавливает только билеты, полезно, если заголовок",
-    "уже был установлен, однако билеты отсутствовали или были повреждены."
+    "Устанавливает только тикеты, полезно, если заголовок",
+    "уже был установлен, однако тикеты отсутствовали или были повреждены."
   ],
   "Skip base": "Пропустить базу игры",
   "Skips installing the base application.": "Пропускает установку базового приложения.",
@@ -166,8 +166,8 @@
   "Skip data patch": "Пропустить патч данных",
   "Skips installing DLC update (data patch).": "Пропускает установку обновления DLC (патча данных).",
   "Skip ticket": "Пропустить тикет",
-  "Skips installing tickets, not recommended.": "Пропускает установку билетов, не рекомендуется.",
-  "Skip NCA hash verify": "Не проверять NCA hash",
+  "Skips installing tickets, not recommended.": "Пропускает установку тикетов, не рекомендуется.",
+  "Skip NCA hash verify": "Не проверять NCA хэш",
   "skip_nca_info": [
     "Включает возможность пропустить проверку sha256. Это хеш всего NCA. ",
     "Он используется для проверки того, что NCA действителен/не поврежден. ",
@@ -211,7 +211,7 @@
     "Do note that just because the game can be launched on any fw (as it can be decrypted), doesn't mean it will work. It is strongly recommened to update your firmware and Atmosphere version in order to play the game, rather than enabling this option.\n",
     "It is recommended to keep this disabled."
   ],
-  "Lower system version": "Снизить версию системы",
+  "Lower system version": "Понизить версию системы",
   "cnmt_fw_info": [
     "Устанавливает поле system_firmware в расширенном заголовке cnmt равным 0. ",
     "Примечание: если мастер-ключ старше версии прошивки, игра все равно не запустится, так как в прошивке не будет ключа для расшифровки keak (см. выше).\n",
@@ -237,10 +237,11 @@
   "Converts personalised ticket to a fake common ticket.": "Преобразует персональный билет в поддельный общий билет.",
   "NSZ level": "Уровень NSZ",
   "compress_level_info": [
-    "Устанавливает уровень сжатия, используемый при экспорте в NSZ.\n",
-    "ПРИМЕЧАНИЕ. ЦП коммутатора не очень быстрый, и установка слишком высокого значения может ",
-    "в результате экспорт занимает очень много времени при очень незначительном увеличении размера.\n",
-    "Рекомендуется установить это значение равным 3."
+    "Устанавливает уровень сжатия при экспорте в NSZ.\n",
+    "ПРИМЕЧАНИЕ: процессор Switch не слишком мощный, поэтому слишком",
+    "высокое значение может значительно увеличить время экспорта,",
+    "при этом размер файла уменьшится совсем незначительно.\n",
+    "Рекомендуется установить значение 3."
   ],
   "NSZ threads": "NSZ темы",
   "compress_threads_info": [
@@ -273,7 +274,7 @@
   "Enable FTP server to run in the background.": "Включите сервер FTP для работы в фоновом режиме.",
   "Port": "Порт",
   "Opens the FTP server on this port.": "Открывает сервер FTP на этом порту.",
-  "Anon": "Анон",
+  "Anon": "Анонимно",
   "login_require_info": [
     "Позволяет войти в систему без установки имени пользователя и пароля.",
     "Если отключено, вы должны установить имя пользователя и пароль ниже!"
@@ -298,19 +299,19 @@
     "- BootConfigAndPackage2Part4.bin",
     "- BootConfigAndPackage2Part5.bin",
     "- BootConfigAndPackage2Part6.bin",
-    "- Файл калибровки.bin",
+    "- CalibrationFile.bin",
     "- SafeMode.bin",
-    "- Пользователь.bin",
-    "- Система.bin",
+    "- User.bin",
+    "- System.bin",
     "- SystemProperEncryption.bin"
   ],
   "Show bis file systems": "Показать файловые системы bis",
   "bis_fs_info": [
     "Показывает следующие файловые системы bis:",
-    "- бис_калибровочный_файл",
+    "- bis_calibration_file",
     "- bis_safe_mode",
-    "- бис_пользователь",
-    "- бис_система"
+    "- bis_user",
+    "- bis_system"
   ],
   "Show system contents": "Показать содержимое системы",
   "Shows the system contents folder.": "Показывает папку с содержимым системы.",
@@ -335,20 +336,20 @@
     "Эта папка используется для установки игр через FTP.\n",
     "ПРИМЕЧАНИЕ. При попытке установить игру необходимо открыть меню «FTP Install»!"
   ],
-  "Show mounts": "Показать средства передвижения",
+  "Show mounts": "Показать точки монтирования",
   "mounts_ftp_info": [
-    "Показывает папку монтирования.\n",
-    "Эта папка содержит все средства крепления, добавленные в Sphaira, что позволяет получить к ним доступ через FTP!",
-    "Например, вы можете получить доступ к своим монтированиям SMB, WebDav или другим FTP через FTP."
+    "Показывает папку mounts.\n",
+    "Эта папка содержит все точки монтирования, добавленные в Sphaira, что позволяет получать к ним доступ через FTP.",
+    "Например, через FTP можно получить доступ к ресурсам SMB, WebDAV или другим FTP-подключениям."
   ],
-  "Show switch": "Показать переключатель",
+  "Show switch": "Показать папку switch",
   "homebrew_folder_info": [
     "Показывает ярлык папки /switch.",
-    "Это папка, содержащая все ваши доморощенные файлы (NRO)."
+    "Это папка, содержащая все ваши файлы NRO."
   ],
   "MTP Options": "MTP Опции",
   "Restarting MTP server...": "Перезапуск сервера MTP...",
-  "Enable MTP server to run in the background.": "Включите сервер MTP для работы в фоновом режиме.",
+  "Enable MTP server to run in the background.": "Запускать сервер MTP в фоновом режиме.",
   "Pre-allocate file": "Предварительное выделение файла",
   "prealloc_info": [
     "Включает предварительное выделение размера файла перед записью.",
@@ -506,19 +507,19 @@
   "Enabled": "Включено",
   "Disabled": "Отключено",
   "Automatically select the compatible debug flag or override it": "Автоматически выбирать совместимый флаг отладки или переопределить его.",
-  "Choose an NRO, PNG, or JPEG icon": "Выберите значок NRO, PNG или JPEG.",
+  "Choose an NRO, PNG, or JPEG icon": "Выберите иконку NRO, PNG или JPEG.",
   "Search SteamGridDB": "Поиск SteamGridDB",
-  "Search SteamGridDB for a new forwarder icon": "Найти новый значок форвардера в SteamGridDB",
+  "Search SteamGridDB for a new forwarder icon": "Найти новую иконку форвардера в SteamGridDB",
   "SteamGridDB": "SteamGridDB",
   "SteamGridDB API Key": "SteamGridDB API-ключ",
   "Enter your API key from steamgriddb.com": "Введите свой ключ API с сайта steamgriddb.com.",
   "A SteamGridDB API key is required": "Требуется ключ API SteamGridDB.",
-  "Searching SteamGridDB": "Поиск SteamGridDB",
+  "Searching SteamGridDB": "Поиск по SteamGridDB",
   "Searching for matching titles": "Поиск подходящих названий",
-  "Loading available icons": "Загрузка доступных значков",
-  "Downloading icon": "Значок загрузки",
-  "Loading more SteamGridDB icons": "Загрузка дополнительных значков SteamGridDB",
-  "Load 4 More": "Загрузите еще 4",
+  "Loading available icons": "Загрузка доступных иконок",
+  "Downloading icon": "Иконка загрузки",
+  "Loading more SteamGridDB icons": "Загрузка дополнительных иконок SteamGridDB",
+  "Load 4 More": "Загрузить еще 4",
   "remaining": "оставшееся",
   "No more SteamGridDB icons could be downloaded": "Больше не удалось загрузить значки SteamGridDB.",
   "Choose an Icon": "Выберите значок",
@@ -528,9 +529,9 @@
   "No matching SteamGridDB icons were found": "Соответствующие значки SteamGridDB не найдены.",
   "SteamGridDB returned an invalid response": "SteamGridDB вернул неверный ответ.",
   "Enter an App Title before searching": "Введите название приложения перед поиском",
-  "Local Icon": "Локальный значок",
+  "Local Icon": "Локальная иконка",
   "Press A or tap the icon to change it": "Нажмите A или коснитесь значка, чтобы изменить его.",
-  "Choose Icon Source": "Выберите источник значков",
+  "Choose Icon Source": "Выберите источник иконок",
   "Local File": "Локальный файл",
   "The selected icon is not a valid image": "Выбранный значок не является допустимым изображением.",
   "The required fields and icon must be non-empty": "Обязательные поля и значок не должны быть пустыми.",
@@ -566,8 +567,8 @@
   "Undo": "Отменить",
   "Redo": "Повторить",
   "Save All": "Сохранить все",
-  "Nothing to undo": "Ничего нельзя отменить",
-  "Nothing to redo": "Ничего переделывать",
+  "Nothing to undo": "Нечего отменять",
+  "Nothing to redo": "Нечего переделывать",
   "No next line to join": "Нет следующей строки для присоединения",
   "No changes to save": "Нет изменений для сохранения",
   "Save failed!": "Сохранить не удалось!",
@@ -577,8 +578,8 @@
   "Discard": "Отбросить",
   "Modified - use Line actions to save": "Изменено — используйте действия с линией для сохранения.",
   "UTF-8 text editor": "Текстовый редактор UTF-8",
-  "Customize Homebrew": "Настроить доморощенное пиво",
-  "Homebrew Name": "Название домашнего пивоварения",
+  "Customize Homebrew": "Кастомизация Хоумбрю",
+  "Homebrew Name": "Название Хоумбрю",
   "Save Changes": "Сохранить изменения",
   "Change the name and icon embedded in the selected NRO.": "Измените имя и значок, встроенные в выбранный NRO.",
   "This NRO does not contain editable application information.": "Этот NRO не содержит редактируемой информации о приложении.",
@@ -872,16 +873,16 @@
   "90 (Flat)": "90 (ровно)",
   "180 (-Sideways)": "180 (-боком)",
   "270 (Upside down)": "270 (перевернуто)",
-  "Grey": "Серый",
-  "Ironbow": "Фьюжн",
-  "Green": "Зеленый",
-  "Red": "Красный",
-  "Blue": "Синий",
-  "All leds": "Все",
-  "Bright group": "Яркие",
-  "Dim group": "Тусклые",
-  "Normal image": "Отключён",
-  "Negative image": "Негативный имидж",
+	"Grey": "Серый",
+	"Ironbow": "Ironbow",
+	"Green": "Зелёный",
+	"Red": "Красный",
+	"Blue": "Синий",
+	"All leds": "Все светодиоды",
+	"Bright group": "Яркие",
+	"Dim group": "Тусклые",
+	"Normal image": "Обычное изображение",
+	"Negative image": "Негативное изображение",
   "Controller": "Контроллер",
   "Rotation": "Поворот",
   "Colour": "Цвет",
@@ -916,12 +917,11 @@
     "Возможна экспериментальная поддержка резервного копирования системных сохранений."
   ],
   "Download releases directly from GitHub. Custom entries can be added to /config/sphaira/github": [
-    "Загрузите выпуски напрямую с GitHub. Пользовательские записи могут быть ",
-    "добавлено в /config/sphaira/github"
+    "Загружает релизы напрямую с GitHub. Пользовательские записи можно добавить в каталог /config/sphaira/github":
   ],
-  "Install apps via FTP.": "Устанавливайте приложения через FTP.",
+  "Install apps via FTP.": "Установка приложений через FTP.",
   "MTP Install": "Установка по MTP",
-  "Install apps via MTP.": "Устанавливайте приложения через MTP.",
+  "Install apps via MTP.": "Установка приложений через MTP.",
   "USB Install": "Установка по USB",
   "Install apps via USB.\n\nA USB client is required on PC.": "Устанавливайте приложения через USB.\n\nНа ПК требуется клиент USB.",
   "View info on the inserted Game Card (GC). You can backup and install the inserted GC. To swap GC's, simply remove the old GC and insert the new one. You do not need to exit the menu.": [
@@ -1109,7 +1109,7 @@
     "Включение не позволяет файловому браузеру проверять количество файлов и папок в папке. ",
     "Это повышает производительность просмотра, особенно для серверов с медленным листингом каталогов."
   ],
-  "FS hidden": "ФС скрыт",
+  "FS hidden": "ФС скрыта",
   "Hide the mount from being visible in the file browser.": "Скройте монтирование от просмотра в файловом браузере.",
   "Export hidden": "Экспорт скрыт",
   "Hide the mount from being visible as a export option for games and saves.": [
