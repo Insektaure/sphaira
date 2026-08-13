@@ -239,6 +239,8 @@
     "Het wordt aanbevolen om dit uitgeschakeld te houden."
   ],
   "Export Options": "Exportopties",
+  "Fix export filenames": "Exportbestandsnamen corrigeren",
+  "fix_export_filenames_info": "Gebruikt de Engelse titel voor exportbestandsnamen en valt terug op de titel-ID als die niet beschikbaar is. Schakel dit uit om gelokaliseerde en Unicode-titels te behouden op bestemmingen die dit ondersteunen.",
   "Created nested folder": "Geneste map gemaakt",
   "game_folder_info": [
     "Creëert een map met de naam van het spel.",

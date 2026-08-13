@@ -239,6 +239,8 @@
     "Si consiglia di mantenerlo disabilitato."
   ],
   "Export Options": "Opzioni di esportazione",
+  "Fix export filenames": "Correggi nomi dei file esportati",
+  "fix_export_filenames_info": "Usa il titolo inglese per i file esportati e, se non disponibile, usa l'ID titolo. Disattiva questa opzione per mantenere i titoli localizzati e Unicode sulle destinazioni compatibili.",
   "Created nested folder": "Cartella nidificata creata",
   "game_folder_info": [
     "Crea una cartella utilizzando il nome del gioco.",

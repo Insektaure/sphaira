@@ -239,6 +239,8 @@
     "Es wird empfohlen, dies deaktiviert zu lassen."
   ],
   "Export Options": "Exportoptionen",
+  "Fix export filenames": "Exportdateinamen korrigieren",
+  "fix_export_filenames_info": "Verwendet den englischen Titel für Exportdateinamen und greift auf die Titel-ID zurück, wenn keiner verfügbar ist. Deaktivieren Sie diese Option, um lokalisierte und Unicode-Titel auf kompatiblen Zielen beizubehalten.",
   "Created nested folder": "Verschachtelten Ordner erstellt",
   "game_folder_info": [
     "Erstellt einen Ordner mit dem Namen des Spiels.",

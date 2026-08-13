@@ -11,6 +11,7 @@
 #include "option.hpp"
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <span>
 
@@ -183,9 +184,9 @@ struct ContentInfoEntry {
     std::vector<NcmRightsId> ncm_rights_id{};
 };
 
-auto BuildNspPath(const Entry& e, const NsApplicationContentMetaStatus& status, bool to_nsz = false) -> fs::FsPath;
+auto BuildNspPath(const Entry& e, std::string_view export_name, const NsApplicationContentMetaStatus& status, bool to_nsz = false) -> fs::FsPath;
 Result BuildContentEntry(const NsApplicationContentMetaStatus& status, ContentInfoEntry& out, bool to_nsz = false);
-Result BuildNspEntry(const Entry& e, const ContentInfoEntry& info, const keys::Keys& keys, NspEntry& out, bool to_nsz = false);
+Result BuildNspEntry(const Entry& e, std::string_view export_name, const ContentInfoEntry& info, const keys::Keys& keys, NspEntry& out, bool to_nsz = false);
 Result BuildNspEntries(Entry& e, const title::MetaEntries& meta_entries, std::vector<NspEntry>& out, bool to_nsz = false);
 Result BuildNspEntries(Entry& e, u32 flags, std::vector<NspEntry>& out, bool to_nsz = false);
 

@@ -245,6 +245,8 @@
     "해당 옵션의 사용을 권장하지 않습니다."
   ],
   "Export Options": "추출 옵션",
+  "Fix export filenames": "내보내기 파일명 수정",
+  "fix_export_filenames_info": "내보내기 파일명에 영어 제목을 사용하고, 없으면 타이틀 ID를 사용합니다. 지원되는 대상에서 현지화 및 유니코드 제목을 유지하려면 이 옵션을 비활성화하세요.",
   "Created nested folder": "게임 이름 폴더 생성",
   "game_folder_info": "게임 이름의 폴더를 생성합니다.\n\n활성화: name/name.xci\n\n비활성화: name.xci",
   "Append folder with .xci": "폴더명에 확장자 추가",

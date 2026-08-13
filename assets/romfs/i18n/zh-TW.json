@@ -233,6 +233,8 @@
     "建議保持停用此選項。"
   ],
   "Export Options": "匯出選項",
+  "Fix export filenames": "修正匯出檔名",
+  "fix_export_filenames_info": "匯出檔名使用英文標題；沒有英文標題時使用標題 ID。若目標裝置支援本地化及 Unicode 標題，可關閉此選項以保留這些標題。",
   "Created nested folder": "已建立巢狀資料夾",
   "game_folder_info": [
     "使用遊戲名稱建立資料夾。",

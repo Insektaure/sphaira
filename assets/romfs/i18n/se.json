@@ -239,6 +239,8 @@
     "Det rekommenderas att hålla detta inaktiverat."
   ],
   "Export Options": "Exportalternativ",
+  "Fix export filenames": "Korrigera exportfilnamn",
+  "fix_export_filenames_info": "Använder den engelska titeln för exportfilnamn och använder titel-ID om den saknas. Inaktivera detta för att behålla lokaliserade titlar och Unicode på mål som stöder dem.",
   "Created nested folder": "Skapat kapslad mapp",
   "game_folder_info": [
     "Skapar en mapp med namnet på spelet.",

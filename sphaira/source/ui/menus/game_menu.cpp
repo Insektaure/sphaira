@@ -1182,10 +1182,7 @@ void DeleteMetaEntries(u64 app_id, int image, const std::string& name, const tit
     });
 }
 
-auto BuildNspPath(const Entry& e, const NsApplicationContentMetaStatus& status, bool to_nsz) -> fs::FsPath {
-    fs::FsPath name_buf = e.GetName();
-    title::utilsReplaceIllegalCharacters(name_buf, true);
-
+auto BuildNspPath(const Entry& e, std::string_view export_name, const NsApplicationContentMetaStatus& status, bool to_nsz) -> fs::FsPath {
     char version[sizeof(NacpStruct::display_version) + 1]{};
     if (status.meta_type == NcmContentMetaType_Patch) {
         u64 program_id;
@@ -1200,14 +1197,24 @@ auto BuildNspPath(const Entry& e, const NsApplicationContentMetaStatus& status, 
 
     const auto ext = to_nsz ? "nsz" : "nsp";
 
-    fs::FsPath path;
-    if (App::GetApp()->m_dump_app_folder.Get()) {
-        std::snprintf(path, sizeof(path), "%s/%s %s[%016lX][v%u][%s].%s", name_buf.s, name_buf.s, version, status.application_id, status.version, ncm::GetMetaTypeShortStr(status.meta_type), ext);
+    fs::FsPath file_name;
+    if (export_name.empty()) {
+        std::snprintf(file_name, sizeof(file_name), "%s[%016lX][v%u][%s].%s", version, status.application_id, status.version, ncm::GetMetaTypeShortStr(status.meta_type), ext);
     } else {
-        std::snprintf(path, sizeof(path), "%s %s[%016lX][v%u][%s].%s", name_buf.s, version, status.application_id, status.version, ncm::GetMetaTypeShortStr(status.meta_type), ext);
+        std::snprintf(file_name, sizeof(file_name), "%.*s %s[%016lX][v%u][%s].%s", static_cast<int>(export_name.size()), export_name.data(), version, status.application_id, status.version, ncm::GetMetaTypeShortStr(status.meta_type), ext);
     }
 
-    return path;
+    if (App::GetApp()->m_dump_app_folder.Get()) {
+        fs::FsPath folder;
+        if (export_name.empty()) {
+            std::snprintf(folder, sizeof(folder), "%016lX", e.app_id);
+        } else {
+            std::snprintf(folder, sizeof(folder), "%.*s", static_cast<int>(export_name.size()), export_name.data());
+        }
+        return fs::AppendPath(folder, file_name);
+    }
+
+    return file_name;
 }
 
 Result BuildContentEntry(const NsApplicationContentMetaStatus& status, ContentInfoEntry& out, bool to_nsz) {
@@ -1246,9 +1253,9 @@ Result BuildContentEntry(const NsApplicationContentMetaStatus& status, ContentIn
     R_SUCCEED();
 }
 
-Result BuildNspEntry(const Entry& e, const ContentInfoEntry& info, const keys::Keys& keys, NspEntry& out, bool to_nsz) {
+Result BuildNspEntry(const Entry& e, std::string_view export_name, const ContentInfoEntry& info, const keys::Keys& keys, NspEntry& out, bool to_nsz) {
     out.application_name = e.GetName();
-    out.path = BuildNspPath(e, info.status, to_nsz);
+    out.path = BuildNspPath(e, export_name, info.status, to_nsz);
     s64 offset{};
 
     for (auto& e : info.content_infos) {
@@ -1301,6 +1308,10 @@ Result BuildNspEntry(const Entry& e, const ContentInfoEntry& info, const keys::K
 Result BuildNspEntries(Entry& e, const title::MetaEntries& meta_entries, std::vector<NspEntry>& out, bool to_nsz) {
     LoadControlEntry(e);
 
+    const auto fix_filenames = App::GetApp()->m_dump_fix_filenames.Get();
+    const auto english_name = fix_filenames ? title::GetEnglishTitleName(e.app_id) : std::string{};
+    const auto export_name = title::MakeExportTitleName(e.GetName(), english_name, fix_filenames);
+
     keys::Keys keys;
     R_TRY(keys::parse_keys(keys, true));
 
@@ -1309,7 +1320,7 @@ Result BuildNspEntries(Entry& e, const title::MetaEntries& meta_entries, std::ve
         R_TRY(BuildContentEntry(status, info));
 
         NspEntry nsp;
-        R_TRY(BuildNspEntry(e, info, keys, nsp, to_nsz));
+        R_TRY(BuildNspEntry(e, export_name, info, keys, nsp, to_nsz));
         out.emplace_back(nsp).icon = e.image;
     }
 

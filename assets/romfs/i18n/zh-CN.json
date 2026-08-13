@@ -233,6 +233,8 @@
     "建议保持禁用状态。"
   ],
   "Export Options": "导出选项",
+  "Fix export filenames": "修正导出文件名",
+  "fix_export_filenames_info": "导出文件名使用英文标题；没有英文标题时使用标题 ID。若目标设备支持本地化及 Unicode 标题，可关闭此选项以保留这些标题。",
   "Created nested folder": "已创建嵌套文件夹",
   "game_folder_info": [
     "使用游戏名称创建文件夹。\n",

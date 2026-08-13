@@ -241,6 +241,8 @@
     "このオプションは推奨されません。"
   ],
   "Export Options": "抽出設定",
+  "Fix export filenames": "エクスポートファイル名を修正",
+  "fix_export_filenames_info": "エクスポートファイル名には英語タイトルを使用し、存在しない場合はタイトルIDを使用します。対応する保存先でローカライズ名やUnicode名を維持するには、このオプションを無効にしてください。",
   "Created nested folder": "ゲーム名のフォルダーを作成",
   "game_folder_info": "ゲーム名のフォルダーを作成します。\n\nオン: name/name.xci\nオフ: name.xci",
   "Append folder with .xci": ".xciをフォルダ名に追加",

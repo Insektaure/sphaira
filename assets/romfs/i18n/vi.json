@@ -239,6 +239,8 @@
     "Nên tắt tính năng này."
   ],
   "Export Options": "Tùy chọn xuất",
+  "Fix export filenames": "Sửa tên tệp xuất",
+  "fix_export_filenames_info": "Dùng tên tiếng Anh cho tệp xuất và dùng ID tựa game khi không có tên tiếng Anh. Tắt tùy chọn này để giữ tên bản địa hóa và Unicode trên các đích hỗ trợ.",
   "Created nested folder": "Đã tạo thư mục lồng nhau",
   "game_folder_info": [
     "Tạo một thư mục sử dụng tên của trò chơi.",

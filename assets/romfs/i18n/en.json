@@ -239,6 +239,8 @@
     "It is recommended to keep this disabled."
   ],
   "Export Options": "Export Options",
+  "Fix export filenames": "Fix export filenames",
+  "fix_export_filenames_info": "Uses the English title for export filenames and falls back to the Title ID when unavailable. Disable this to preserve localized and Unicode titles on destinations that support them.",
   "Created nested folder": "Created nested folder",
   "game_folder_info": [
     "Creates a folder using the name of the game.",

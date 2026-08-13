@@ -63,6 +63,8 @@ Thread g_thread{};
 u32 g_ref_count{};
 std::unique_ptr<ThreadData> g_thread_data{};
 
+void NormalizeNacpLangData(NacpStruct& nacp);
+
 struct NcmEntry {
     const NcmStorageId storage_id;
     NcmContentStorage cs{};
@@ -120,9 +122,7 @@ void FakeNacpEntry(ThreadResultData* e) {
     std::strcpy(e->lang.author, "Corrupted"_i18n.c_str());
 }
 
-Result LoadControlManual(u64 id, NacpStruct& nacp, ThreadResultData* data) {
-    TimeStamp ts;
-
+Result LoadControlNacp(u64 id, NacpStruct& nacp, std::vector<u8>* icon) {
     MetaEntries entries;
     R_TRY(GetMetaEntries(id, entries, ContentFlag_Nacp));
     R_UNLESS(!entries.empty(), Result_GameEmptyMetaEntries);
@@ -130,7 +130,13 @@ Result LoadControlManual(u64 id, NacpStruct& nacp, ThreadResultData* data) {
     u64 program_id;
     fs::FsPath path;
     R_TRY(GetControlPathFromStatus(entries.back(), &program_id, &path));
-    R_TRY(nca::ParseControl(path, program_id, &nacp, sizeof(nacp), &data->icon));
+    return nca::ParseControl(path, program_id, &nacp, sizeof(nacp), icon);
+}
+
+Result LoadControlManual(u64 id, NacpStruct& nacp, ThreadResultData* data) {
+    TimeStamp ts;
+
+    R_TRY(LoadControlNacp(id, nacp, &data->icon));
 
     log_write("\t\t[manual control] time taken: %.2fs %zums\n", ts.GetSecondsD(), ts.GetMs());
     R_SUCCEED();
@@ -604,6 +610,38 @@ Result GetControlPathFromStatus(const NsApplicationContentMetaStatus& status, u6
     R_TRY(ncmContentMetaDatabaseGetContentIdByType(&db, &content_id, &key, NcmContentType_Control));
 
     return ncm::GetFsPathFromContentId(&cs, key, content_id, out_program_id, out_path);
+}
+
+auto GetEnglishTitleName(u64 app_id) -> std::string {
+    NacpStruct nacp{};
+    if (R_FAILED(LoadControlNacp(app_id, nacp, nullptr))) {
+        return {};
+    }
+
+    NormalizeNacpLangData(nacp);
+    for (const auto language : {SetLanguage_ENUS, SetLanguage_ENGB}) {
+        const auto& entry = nacp.lang[language];
+        if (entry.name[0]) {
+            return {std::begin(entry.name), std::find(std::begin(entry.name), std::end(entry.name), '\0')};
+        }
+    }
+
+    return {};
+}
+
+auto MakeExportTitleName(std::string_view current_name, std::string_view english_name, bool fix_name) -> std::string {
+    std::string name{fix_name ? english_name : current_name};
+    if (name.empty()) {
+        return {};
+    }
+
+    utilsReplaceIllegalCharacters(name.data(), fix_name);
+    name.resize(std::strlen(name.c_str()));
+
+    const auto usable = std::ranges::any_of(name, [](unsigned char c) {
+        return c != '_' && c != ' ' && c != '.';
+    });
+    return usable ? name : std::string{};
 }
 
 // taken from nxdumptool.
