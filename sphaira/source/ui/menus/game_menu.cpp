@@ -8,6 +8,7 @@
 #include "swkbd.hpp"
 
 #include "utils/utils.hpp"
+#include "utils/thread.hpp"
 #include "utils/nsz_dumper.hpp"
 
 #include "ui/menus/game_menu.hpp"
@@ -31,7 +32,9 @@
 #include <utility>
 #include <cstring>
 #include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <optional>
 #include <minIni.h>
 
 namespace sphaira::ui::menu::game {
@@ -233,6 +236,200 @@ Result CreateSave(u64 app_id, AccountUid uid) {
 }
 
 } // namespace
+
+struct PlaytimeWorker {
+    struct Job {
+        u64 app_id{};
+        u64 last_played{};
+
+        bool operator==(const Job&) const = default;
+    };
+
+    struct Data {
+        u64 playtime{};
+        std::vector<u64> user_playtimes{};
+    };
+
+    struct ResultData {
+        Job job{};
+        Data data{};
+    };
+
+    explicit PlaytimeWorker(const std::vector<AccountProfileBase>& accounts) : m_accounts{accounts} {
+        ueventCreate(&m_uevent, true);
+        mutexInit(&m_job_mutex);
+        mutexInit(&m_result_mutex);
+        m_running = true;
+
+        if (R_FAILED(utils::CreateThread(&m_thread, ThreadFunc, this, 1024 * 32))) {
+            m_running = false;
+            return;
+        }
+
+        if (R_FAILED(threadStart(&m_thread))) {
+            threadClose(&m_thread);
+            m_running = false;
+            return;
+        }
+
+        m_started = true;
+    }
+
+    ~PlaytimeWorker() {
+        Stop();
+    }
+
+    bool IsRunning() const {
+        return m_started && m_running;
+    }
+
+    void Stop() {
+        if (!m_started) {
+            return;
+        }
+
+        m_running = false;
+        ueventSignal(&m_uevent);
+        threadWaitForExit(&m_thread);
+        threadClose(&m_thread);
+        m_started = false;
+    }
+
+    void Request(const Job& job) {
+        if (!IsRunning()) {
+            return;
+        }
+
+        SCOPED_MUTEX(&m_job_mutex);
+        if ((m_active && *m_active == job) || (m_completed && *m_completed == job)) {
+            m_pending.reset();
+            return;
+        }
+        if (m_pending && *m_pending == job) {
+            return;
+        }
+
+        m_pending = job;
+        ueventSignal(&m_uevent);
+    }
+
+    auto TakeResults() -> std::vector<ResultData> {
+        SCOPED_MUTEX(&m_result_mutex);
+        std::vector<ResultData> out;
+        std::swap(out, m_results);
+        return out;
+    }
+
+    static auto Query(u64 app_id, const std::vector<AccountProfileBase>& accounts, const std::atomic_bool* running = nullptr) -> std::optional<Data> {
+        Data data;
+        data.user_playtimes.reserve(accounts.size());
+
+        bool query_succeeded{};
+        for (const auto& account : accounts) {
+            if (running && !*running) {
+                return std::nullopt;
+            }
+
+            PdmPlayStatistics stats{};
+            u64 user_playtime{};
+            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(app_id, account.uid, true, &stats))) {
+                user_playtime = stats.playtime;
+                query_succeeded = true;
+            }
+
+            data.playtime += user_playtime;
+            data.user_playtimes.push_back(user_playtime);
+        }
+
+        if (!data.playtime) {
+            if (running && !*running) {
+                return std::nullopt;
+            }
+
+            PdmPlayStatistics stats{};
+            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationId(app_id, true, &stats))) {
+                data.playtime = stats.playtime;
+                query_succeeded = true;
+            }
+        }
+
+        if (!query_succeeded) {
+            return std::nullopt;
+        }
+        return data;
+    }
+
+    static void WriteCache(const Job& job, const Data& data) {
+        char section[33];
+        std::snprintf(section, sizeof(section), "%016lX", job.app_id);
+
+        for (size_t i = 0; i < data.user_playtimes.size(); i++) {
+            char key[32];
+            std::snprintf(key, sizeof(key), "user_%zu_mins", i);
+            ini_putl(section, key, data.user_playtimes[i] / 60000000000ULL, App::PLAYLOG_PATH);
+        }
+
+        ini_putl(section, "last_played", job.last_played, App::PLAYLOG_PATH);
+        ini_putl(section, "playtime_mins", data.playtime / 60000000000ULL, App::PLAYLOG_PATH);
+    }
+
+private:
+    static void ThreadFunc(void* user) {
+        static_cast<PlaytimeWorker*>(user)->Run();
+    }
+
+    void Run() {
+        const auto waiter = waiterForUEvent(&m_uevent);
+        while (m_running) {
+            waitSingle(waiter, UINT64_MAX);
+            if (!m_running) {
+                return;
+            }
+
+            std::optional<Job> job;
+            {
+                SCOPED_MUTEX(&m_job_mutex);
+                if (m_pending) {
+                    job = std::exchange(m_pending, std::nullopt);
+                    m_active = job;
+                }
+            }
+            if (!job) {
+                continue;
+            }
+
+            auto data = Query(job->app_id, m_accounts, &m_running);
+            if (data && m_running) {
+                WriteCache(*job, *data);
+                {
+                    SCOPED_MUTEX(&m_result_mutex);
+                    m_results.push_back({*job, std::move(*data)});
+                }
+            }
+
+            {
+                SCOPED_MUTEX(&m_job_mutex);
+                if (data) {
+                    m_completed = job;
+                }
+                m_active.reset();
+            }
+        }
+    }
+
+private:
+    std::vector<AccountProfileBase> m_accounts{};
+    std::vector<ResultData> m_results{};
+    std::optional<Job> m_pending{};
+    std::optional<Job> m_active{};
+    std::optional<Job> m_completed{};
+    UEvent m_uevent{};
+    Mutex m_job_mutex{};
+    Mutex m_result_mutex{};
+    Thread m_thread{};
+    std::atomic_bool m_running{};
+    bool m_started{};
+};
 
 Result NspEntry::Read(void* buf, s64 off, s64 size, u64* bytes_read) {
     if (off == nsp_size) {
@@ -497,6 +694,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
 }
 
 Menu::~Menu() {
+    StopPlaytimeWorker(false);
     title::Exit();
 
     FreeEntries();
@@ -511,6 +709,8 @@ Menu::~Menu() {
 }
 
 void Menu::Update(Controller* controller, TouchInfo* touch) {
+    ApplyPlaytimeResults();
+
     if (g_change_signalled.exchange(false)) {
         m_dirty = true;
     }
@@ -604,48 +804,6 @@ void Menu::SetIndex(s64 index) {
     char title_id[33];
     std::snprintf(title_id, sizeof(title_id), "%016lX", entry.app_id);
 
-    char section[33];
-    std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
-
-    const auto cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
-    if (m_pdm_initialized && (entry.last_played != cached_last_played || entry.user_playtimes.empty())) {
-        if (m_accounts.empty()) {
-            m_accounts = App::GetAccountList();
-        }
-
-        u64 total_playtime{};
-        entry.user_playtimes.clear();
-        for (size_t i = 0; i < m_accounts.size(); i++) {
-            PdmPlayStatistics stats{};
-            u64 user_playtime{};
-            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(entry.app_id, m_accounts[i].uid, true, &stats))) {
-                user_playtime = stats.playtime;
-            }
-
-            total_playtime += user_playtime;
-            entry.user_playtimes.push_back(user_playtime);
-
-            char key[32];
-            std::snprintf(key, sizeof(key), "user_%zu_mins", i);
-            ini_putl(section, key, user_playtime / 60000000000ULL, App::PLAYLOG_PATH);
-        }
-
-        if (!total_playtime) {
-            PdmPlayStatistics stats{};
-            if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationId(entry.app_id, true, &stats))) {
-                total_playtime = stats.playtime;
-                if (entry.user_playtimes.empty()) {
-                    entry.user_playtimes.push_back(total_playtime);
-                }
-            }
-        }
-
-        entry.playtime = total_playtime;
-        ini_putl(section, "last_played", entry.last_played, App::PLAYLOG_PATH);
-        ini_putl(section, "playtime_mins", entry.playtime / 60000000000ULL, App::PLAYLOG_PATH);
-        SyncEntryToMaster(entry);
-    }
-
     std::string title_info = title_id;
     if (!entry.user_playtimes.empty()) {
         bool showed_profile{};
@@ -665,7 +823,7 @@ void Menu::SetIndex(s64 index) {
             const u64 total_minutes = entry.playtime / 60000000000ULL;
             title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
         }
-    } else if (ini_haskey(section, "playtime_mins", App::PLAYLOG_PATH)) {
+    } else if (entry.playtime_cached) {
         const u64 total_minutes = entry.playtime / 60000000000ULL;
         title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
     } else {
@@ -674,9 +832,16 @@ void Menu::SetIndex(s64 index) {
 
     SetTitleSubHeading(title_info);
     this->SetSubHeading(std::to_string(m_index + 1) + " / " + std::to_string(m_entries.size()));
+
+    const bool profile_cache_missing = !m_accounts.empty() && entry.user_playtimes.size() != m_accounts.size();
+    if (m_playtime_worker && (!entry.playtime_cached || entry.last_played != entry.playtime_cached_last_played || profile_cache_missing)) {
+        m_playtime_worker->Request({entry.app_id, entry.last_played});
+    }
 }
 
 void Menu::ScanHomebrew() {
+    StopPlaytimeWorker(false);
+
     constexpr auto ENTRY_CHUNK_COUNT = 1000;
     const auto hide_forwarders = m_hide_forwarders.Get();
     TimeStamp ts;
@@ -721,16 +886,25 @@ void Menu::ScanHomebrew() {
 
             char section[33];
             std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
+            entry.playtime_cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
             const auto cached_minutes = ini_getl(section, "playtime_mins", -1, App::PLAYLOG_PATH);
             if (cached_minutes >= 0) {
                 entry.playtime = static_cast<u64>(cached_minutes) * 60000000000ULL;
+                entry.playtime_cached = true;
+
+                bool user_cache_complete{true};
                 for (size_t user = 0; user < m_accounts.size(); user++) {
                     char key[32];
                     std::snprintf(key, sizeof(key), "user_%zu_mins", user);
                     const auto user_minutes = ini_getl(section, key, -1, App::PLAYLOG_PATH);
-                    if (user_minutes >= 0) {
-                        entry.user_playtimes.push_back(static_cast<u64>(user_minutes) * 60000000000ULL);
+                    if (user_minutes < 0) {
+                        user_cache_complete = false;
+                        break;
                     }
+                    entry.user_playtimes.push_back(static_cast<u64>(user_minutes) * 60000000000ULL);
+                }
+                if (!user_cache_complete) {
+                    entry.user_playtimes.clear();
                 }
             }
         }
@@ -764,6 +938,7 @@ void Menu::ScanHomebrew() {
     log_write("games found: %zu time_taken: %.2f seconds %zu ms %zu ns\n", m_all_entries.size(), ts.GetSecondsD(), ts.GetMs(), ts.GetNs());
     this->Filter();
     this->Sort();
+    StartPlaytimeWorker();
     SetIndex(0);
     ClearSelection();
 }
@@ -875,11 +1050,74 @@ void Menu::SyncEntryToMaster(const Entry& entry) {
     }
 }
 
+void Menu::StartPlaytimeWorker() {
+    if (!m_pdm_initialized || m_playtime_worker) {
+        return;
+    }
+
+    m_playtime_worker = std::make_unique<PlaytimeWorker>(m_accounts);
+    if (!m_playtime_worker->IsRunning()) {
+        log_write("[PDM] failed to start playtime worker\n");
+        m_playtime_worker.reset();
+    }
+}
+
+void Menu::StopPlaytimeWorker(bool apply_results) {
+    if (!m_playtime_worker) {
+        return;
+    }
+
+    m_playtime_worker->Stop();
+    if (apply_results) {
+        ApplyPlaytimeResults();
+    }
+    m_playtime_worker.reset();
+}
+
+void Menu::ApplyPlaytimeResults() {
+    if (!m_playtime_worker) {
+        return;
+    }
+
+    const auto selected_app_id = m_entries.empty() ? 0 : m_entries[m_index].app_id;
+    bool selected_updated{};
+
+    for (auto& result : m_playtime_worker->TakeResults()) {
+        const auto apply = [&result](Entry& entry) {
+            entry.playtime = result.data.playtime;
+            entry.user_playtimes = result.data.user_playtimes;
+            entry.playtime_cached_last_played = result.job.last_played;
+            entry.playtime_cached = true;
+        };
+
+        const auto master = std::ranges::find_if(m_all_entries, [&result](const auto& entry) {
+            return entry.app_id == result.job.app_id;
+        });
+        if (master != m_all_entries.end()) {
+            apply(*master);
+        }
+
+        const auto visible = std::ranges::find_if(m_entries, [&result](const auto& entry) {
+            return entry.app_id == result.job.app_id;
+        });
+        if (visible != m_entries.end()) {
+            apply(*visible);
+            selected_updated |= visible->app_id == selected_app_id;
+        }
+    }
+
+    if (selected_updated && !m_entries.empty()) {
+        SetIndex(m_index);
+    }
+}
+
 void Menu::LoadPlaytime() {
     if (!m_pdm_initialized) {
         App::Notify("Play statistics unavailable"_i18n);
         return;
     }
+
+    StopPlaytimeWorker(true);
 
     if (m_accounts.empty()) {
         m_accounts = App::GetAccountList();
@@ -888,16 +1126,14 @@ void Menu::LoadPlaytime() {
     std::vector<size_t> update_indices;
     for (size_t i = 0; i < m_all_entries.size(); i++) {
         const auto& entry = m_all_entries[i];
-        char section[33];
-        std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
-        const auto cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
-        const auto cached_playtime = ini_getl(section, "playtime_mins", -1, App::PLAYLOG_PATH);
-        if (entry.last_played != cached_last_played || cached_playtime < 0 || entry.user_playtimes.empty()) {
+        const bool profile_cache_missing = !m_accounts.empty() && entry.user_playtimes.size() != m_accounts.size();
+        if (!entry.playtime_cached || entry.last_played != entry.playtime_cached_last_played || profile_cache_missing) {
             update_indices.push_back(i);
         }
     }
 
     if (update_indices.empty()) {
+        StartPlaytimeWorker();
         m_sort.Set(SortType_TotalPlayTime);
         Filter();
         SortAndFindLastFile(false);
@@ -911,39 +1147,14 @@ void Menu::LoadPlaytime() {
             R_TRY(pbox->ShouldExitResult());
 
             auto& entry = m_all_entries[update_indices[i]];
-            char section[33];
-            std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
-
-            u64 total_playtime{};
-            entry.user_playtimes.clear();
-            for (size_t user = 0; user < m_accounts.size(); user++) {
-                PdmPlayStatistics stats{};
-                u64 user_playtime{};
-                if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(entry.app_id, m_accounts[user].uid, true, &stats))) {
-                    user_playtime = stats.playtime;
-                }
-
-                total_playtime += user_playtime;
-                entry.user_playtimes.push_back(user_playtime);
-
-                char key[32];
-                std::snprintf(key, sizeof(key), "user_%zu_mins", user);
-                ini_putl(section, key, user_playtime / 60000000000ULL, App::PLAYLOG_PATH);
+            const PlaytimeWorker::Job job{entry.app_id, entry.last_played};
+            if (auto data = PlaytimeWorker::Query(entry.app_id, m_accounts)) {
+                entry.playtime = data->playtime;
+                entry.user_playtimes = data->user_playtimes;
+                entry.playtime_cached_last_played = entry.last_played;
+                entry.playtime_cached = true;
+                PlaytimeWorker::WriteCache(job, *data);
             }
-
-            if (!total_playtime) {
-                PdmPlayStatistics stats{};
-                if (R_SUCCEEDED(pdmqryQueryPlayStatisticsByApplicationId(entry.app_id, true, &stats))) {
-                    total_playtime = stats.playtime;
-                    if (entry.user_playtimes.empty()) {
-                        entry.user_playtimes.push_back(total_playtime);
-                    }
-                }
-            }
-
-            entry.playtime = total_playtime;
-            ini_putl(section, "last_played", entry.last_played, App::PLAYLOG_PATH);
-            ini_putl(section, "playtime_mins", entry.playtime / 60000000000ULL, App::PLAYLOG_PATH);
 
             pbox->SetTitle(std::to_string(i + 1) + " / " + std::to_string(update_indices.size()));
             pbox->UpdateTransfer(i + 1, update_indices.size());
@@ -951,6 +1162,7 @@ void Menu::LoadPlaytime() {
 
         R_SUCCEED();
     }, [this](Result rc) {
+        StartPlaytimeWorker();
         if (R_SUCCEEDED(rc)) {
             m_sort.Set(SortType_TotalPlayTime);
             Filter();

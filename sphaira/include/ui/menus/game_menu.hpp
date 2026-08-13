@@ -17,6 +17,8 @@
 
 namespace sphaira::ui::menu::game {
 
+struct PlaytimeWorker;
+
 struct Entry {
     u64 app_id{};
     u8 last_event{};
@@ -25,6 +27,8 @@ struct Entry {
     bool selected{};
     u64 last_played{};
     u64 playtime{};
+    u64 playtime_cached_last_played{};
+    bool playtime_cached{};
     std::vector<u64> user_playtimes{};
     title::NacpLoadStatus status{title::NacpLoadStatus::None};
 
@@ -73,6 +77,9 @@ private:
     void FreeEntries();
     void OnLayoutChange();
     void LoadPlaytime();
+    void StartPlaytimeWorker();
+    void StopPlaytimeWorker(bool apply_results);
+    void ApplyPlaytimeResults();
     void SyncEntryToMaster(const Entry& entry);
 
     auto GetSelectedEntries() const {
@@ -117,6 +124,7 @@ private:
     bool m_is_reversed{};
     bool m_dirty{};
     bool m_pdm_initialized{};
+    std::unique_ptr<PlaytimeWorker> m_playtime_worker{};
 
     // use for detection game card removal to force a refresh.
     Event m_gc_event{};
