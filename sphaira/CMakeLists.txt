@@ -634,6 +634,19 @@ file(COPY ${CMAKE_SOURCE_DIR}/assets/romfs DESTINATION ${CMAKE_CURRENT_BINARY_DI
 # create assets target
 dkp_add_asset_target(sphaira_romfs ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 
+file(GLOB_RECURSE sphaira_romfs_source_files CONFIGURE_DEPENDS
+    LIST_DIRECTORIES false
+    ${CMAKE_SOURCE_DIR}/assets/romfs/*
+)
+add_custom_target(sphaira_romfs_sync
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets/romfs
+        ${CMAKE_CURRENT_BINARY_DIR}/romfs
+    DEPENDS ${sphaira_romfs_source_files}
+)
+add_dependencies(sphaira_romfs sphaira_romfs_sync)
+set_property(TARGET sphaira_romfs APPEND PROPERTY DKP_ASSET_FILES ${sphaira_romfs_source_files})
+
 # wait until hbl is built first as we need the exefs to embed
 add_dependencies(sphaira hbl_nso hbl_npdm)
 

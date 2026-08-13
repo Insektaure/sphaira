@@ -24,12 +24,93 @@
 #include <minIni.h>
 #include <utility>
 #include <algorithm>
+#include <optional>
 
 namespace sphaira::ui::menu::homebrew {
 namespace {
 
 Menu* g_menu{};
 std::atomic_bool g_change_signalled{};
+constexpr const char* SEARCH_PATHS_INI_SECTION = "homebrew_paths";
+
+auto NormalizeSearchPath(const fs::FsPath& input) -> std::optional<fs::FsPath> {
+    const std::string_view path{input};
+    if (path.empty() || path.front() != '/' || path.size() >= PATH_MAX) {
+        return std::nullopt;
+    }
+
+    std::string normalized;
+    normalized.reserve(path.size());
+    for (const auto c : path) {
+        if (c != '/' || normalized.empty() || normalized.back() != '/') {
+            normalized.push_back(c);
+        }
+    }
+    while (normalized.size() > 1 && normalized.back() == '/') {
+        normalized.pop_back();
+    }
+
+    std::string_view components{normalized};
+    while (!components.empty()) {
+        const auto slash = components.find('/');
+        const auto component = components.substr(0, slash);
+        if (component == "." || component == "..") {
+            return std::nullopt;
+        }
+        if (slash == std::string_view::npos) {
+            break;
+        }
+        components.remove_prefix(slash + 1);
+    }
+
+    return fs::FsPath{normalized};
+}
+
+auto LoadSearchPaths() -> std::vector<fs::FsPath> {
+    std::vector<fs::FsPath> paths;
+    ini_browse([](const mTCHAR* section, const mTCHAR*, const mTCHAR* value, void* user_data) -> int {
+        if (std::strcmp(section, SEARCH_PATHS_INI_SECTION) || !value) {
+            return 1;
+        }
+
+        auto& paths = *static_cast<std::vector<fs::FsPath>*>(user_data);
+        const auto path = NormalizeSearchPath(value);
+        if (!path || *path == "/" || *path == "/switch") {
+            return 1;
+        }
+
+        if (std::ranges::none_of(paths, [&path](const auto& entry){ return entry == *path; })) {
+            paths.emplace_back(*path);
+        }
+        return 1;
+    }, &paths, App::CONFIG_PATH);
+    return paths;
+}
+
+auto SaveSearchPaths(const std::vector<fs::FsPath>& paths) -> bool {
+    if (!ini_puts(SEARCH_PATHS_INI_SECTION, nullptr, nullptr, App::CONFIG_PATH)) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < paths.size(); ++i) {
+        const auto key = "path_" + std::to_string(i);
+        if (!ini_puts(SEARCH_PATHS_INI_SECTION, key.c_str(), paths[i], App::CONFIG_PATH)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void AppendUniqueEntries(std::vector<NroEntry>& entries, std::vector<NroEntry>& scanned) {
+    for (auto& entry : scanned) {
+        const auto found = std::ranges::any_of(entries, [&entry](const auto& current){
+            return current.path == entry.path;
+        });
+        if (!found) {
+            entries.emplace_back(std::move(entry));
+        }
+    }
+}
 
 auto GenerateStarPath(const fs::FsPath& nro_path) -> fs::FsPath {
     fs::FsPath out{};
@@ -47,6 +128,53 @@ void FreeEntry(NVGcontext* vg, NroEntry& e) {
 
 void SignalChange() {
     g_change_signalled = true;
+}
+
+auto IsSearchPath(const fs::FsPath& path) -> bool {
+    const auto normalized = NormalizeSearchPath(path);
+    if (!normalized) {
+        return false;
+    }
+    if (*normalized == "/switch") {
+        return true;
+    }
+
+    const auto paths = LoadSearchPaths();
+    return std::ranges::any_of(paths, [&normalized](const auto& entry){ return entry == *normalized; });
+}
+
+auto AddSearchPath(const fs::FsPath& path) -> bool {
+    const auto normalized = NormalizeSearchPath(path);
+    if (!normalized || *normalized == "/" || *normalized == "/switch") {
+        return false;
+    }
+
+    auto paths = LoadSearchPaths();
+    if (std::ranges::any_of(paths, [&normalized](const auto& entry){ return entry == *normalized; })) {
+        return false;
+    }
+
+    paths.emplace_back(*normalized);
+    if (!SaveSearchPaths(paths)) {
+        return false;
+    }
+    SignalChange();
+    return true;
+}
+
+auto RemoveSearchPath(const fs::FsPath& path) -> bool {
+    const auto normalized = NormalizeSearchPath(path);
+    if (!normalized) {
+        return false;
+    }
+
+    auto paths = LoadSearchPaths();
+    const auto removed = std::erase_if(paths, [&normalized](const auto& entry){ return entry == *normalized; });
+    if (!removed || !SaveSearchPaths(paths)) {
+        return false;
+    }
+    SignalChange();
+    return true;
 }
 
 auto GetNroEntries() -> std::span<const NroEntry> {
@@ -175,6 +303,15 @@ void Menu::OnFocusGained() {
 }
 
 void Menu::SetIndex(s64 index) {
+    if (m_entries_current.empty()) {
+        m_index = 0;
+        m_list->SetYoff(0);
+        RemoveAction(Button::R3);
+        SetTitleSubHeading("");
+        SetSubHeading("0 / 0");
+        return;
+    }
+
     m_index = index;
     if (!m_index) {
         m_list->SetYoff(0);
@@ -252,6 +389,12 @@ void Menu::ScanHomebrew() {
     {
         SCOPED_TIMESTAMP("nro scan");
         nro_scan("/switch", m_entries);
+
+        for (const auto& path : LoadSearchPaths()) {
+            std::vector<NroEntry> scanned;
+            nro_scan_depth(path, scanned, 2);
+            AppendUniqueEntries(m_entries, scanned);
+        }
     }
 
     struct IniUser {
@@ -411,7 +554,10 @@ void Menu::Sort() {
 }
 
 void Menu::SortAndFindLastFile(bool scan) {
-    const auto path = GetEntry().path;
+    fs::FsPath path;
+    if (!m_entries_current.empty()) {
+        path = GetEntry().path;
+    }
 
     if (scan) {
         ScanHomebrew();
@@ -419,6 +565,10 @@ void Menu::SortAndFindLastFile(bool scan) {
         Sort();
     }
     SetIndex(0);
+
+    if (path.empty()) {
+        return;
+    }
 
     s64 index = -1;
     for (u64 i = 0; i < m_entries_current.size(); i++) {

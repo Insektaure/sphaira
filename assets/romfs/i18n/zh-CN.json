@@ -1103,5 +1103,12 @@
   "4 (Advanced)": "4（高级）",
   "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 个 CPU 核心\n\n核心 3 与系统服务共享。仅对能正确管理线程亲和性的自制软件启用；不受限制地使用可能导致系统卡顿或不稳定。",
   "Failed to launch homebrew": "无法启动自制软件",
-  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "三核心模式会将核心 3 保留给系统服务。四核心仅应用于能正确管理线程亲和性的自制软件。"
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "三核心模式会将核心 3 保留给系统服务。四核心仅应用于能正确管理线程亲和性的自制软件。",
+  "Add to Homebrew Search Paths": "添加到 Homebrew 搜索路径",
+  "Delete Homebrew Search Paths": "删除 Homebrew 搜索路径",
+  "Remove Homebrew Search Path?": "移除 Homebrew 搜索路径？",
+  "Homebrew search path added.": "已添加 Homebrew 搜索路径。",
+  "Homebrew search path removed.": "已移除 Homebrew 搜索路径。",
+  "Failed to add Homebrew search path": "无法添加 Homebrew 搜索路径",
+  "Failed to remove Homebrew search path": "无法移除 Homebrew 搜索路径"
 }

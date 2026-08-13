@@ -1164,5 +1164,12 @@
   "4 (Advanced)": "4 (Расширенный)",
   "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 ядра ЦП\n\nЯдро 3 используется совместно с системными службами. Включайте этот режим только для homebrew, которое правильно управляет привязкой потоков; неограниченное использование может вызвать задержки или нестабильность системы.",
   "Failed to launch homebrew": "Не удалось запустить homebrew",
-  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Режим с тремя ядрами резервирует ядро 3 для системных служб. Используйте четыре ядра только с homebrew, которое правильно управляет привязкой потоков."
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Режим с тремя ядрами резервирует ядро 3 для системных служб. Используйте четыре ядра только с homebrew, которое правильно управляет привязкой потоков.",
+  "Add to Homebrew Search Paths": "Добавить в пути поиска Homebrew",
+  "Delete Homebrew Search Paths": "Удалить пути поиска Homebrew",
+  "Remove Homebrew Search Path?": "Удалить путь поиска Homebrew?",
+  "Homebrew search path added.": "Путь поиска Homebrew добавлен.",
+  "Homebrew search path removed.": "Путь поиска Homebrew удалён.",
+  "Failed to add Homebrew search path": "Не удалось добавить путь поиска Homebrew",
+  "Failed to remove Homebrew search path": "Не удалось удалить путь поиска Homebrew"
 }

@@ -1164,5 +1164,12 @@
   "4 (Advanced)": "4 (Geavanceerd)",
   "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 CPU-kernen\n\nKern 3 wordt gedeeld met systeemservices. Schakel dit alleen in voor homebrew die threadaffiniteit correct beheert; onbeperkt gebruik kan systeemvertraging of instabiliteit veroorzaken.",
   "Failed to launch homebrew": "Homebrew kon niet worden gestart",
-  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Drie kernen reserveren kern 3 voor systeemservices. Gebruik vier kernen alleen met homebrew die threadaffiniteit correct beheert."
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Drie kernen reserveren kern 3 voor systeemservices. Gebruik vier kernen alleen met homebrew die threadaffiniteit correct beheert.",
+  "Add to Homebrew Search Paths": "Toevoegen aan Homebrew-zoekpaden",
+  "Delete Homebrew Search Paths": "Homebrew-zoekpaden verwijderen",
+  "Remove Homebrew Search Path?": "Homebrew-zoekpad verwijderen?",
+  "Homebrew search path added.": "Homebrew-zoekpad toegevoegd.",
+  "Homebrew search path removed.": "Homebrew-zoekpad verwijderd.",
+  "Failed to add Homebrew search path": "Homebrew-zoekpad kon niet worden toegevoegd",
+  "Failed to remove Homebrew search path": "Homebrew-zoekpad kon niet worden verwijderd"
 }

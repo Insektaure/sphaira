@@ -1138,5 +1138,12 @@
   "4 (Advanced)": "4 (고급)",
   "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "CPU 코어 4개\n\n코어 3은 시스템 서비스와 공유됩니다. 스레드 선호도를 올바르게 관리하는 홈브류에서만 활성화하세요. 제한 없이 사용하면 시스템 지연이나 불안정이 발생할 수 있습니다.",
   "Failed to launch homebrew": "홈브류를 실행하지 못했습니다",
-  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "3코어 모드는 코어 3을 시스템 서비스용으로 예약합니다. 4코어는 스레드 선호도를 올바르게 관리하는 홈브류에서만 사용하세요."
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "3코어 모드는 코어 3을 시스템 서비스용으로 예약합니다. 4코어는 스레드 선호도를 올바르게 관리하는 홈브류에서만 사용하세요.",
+  "Add to Homebrew Search Paths": "Homebrew 검색 경로에 추가",
+  "Delete Homebrew Search Paths": "Homebrew 검색 경로 삭제",
+  "Remove Homebrew Search Path?": "Homebrew 검색 경로를 제거할까요?",
+  "Homebrew search path added.": "Homebrew 검색 경로를 추가했습니다.",
+  "Homebrew search path removed.": "Homebrew 검색 경로를 제거했습니다.",
+  "Failed to add Homebrew search path": "Homebrew 검색 경로를 추가하지 못했습니다",
+  "Failed to remove Homebrew search path": "Homebrew 검색 경로를 제거하지 못했습니다"
 }
