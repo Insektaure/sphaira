@@ -199,6 +199,18 @@ auto launch_internal(const std::string& path, const std::string& argv) -> Result
     R_SUCCEED();
 }
 
+auto process_matches_core_mode(CpuCoreMode core_mode) -> bool {
+    u64 process_mask{};
+    if (R_FAILED(svcGetInfo(&process_mask, InfoType_CoreMask, CUR_PROCESS_HANDLE, 0))) {
+        return core_mode == CpuCoreMode::Three;
+    }
+
+    const auto requested_mask = core_mode == CpuCoreMode::Four
+        ? utils::FourCoreMask
+        : utils::SafeCoreMask;
+    return (process_mask & utils::FourCoreMask) == requested_mask;
+}
+
 } // namespace
 
 /*
@@ -384,6 +396,10 @@ auto nro_launch(std::string path, std::string args, CpuCoreMode core_mode) -> Re
         args = nro_add_arg(path);
     } else {
         args = nro_add_arg(path) + ' ' + args;
+    }
+
+    if (process_matches_core_mode(core_mode)) {
+        return launch_internal(path, args);
     }
 
     R_TRY(prepare_core_launch(path, args, core_mode));
