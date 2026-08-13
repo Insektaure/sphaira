@@ -585,6 +585,7 @@ enum class SphairaResult : Result {
     GhdlEmptyAsset,
     GhdlFailedToDownloadAsset,
     GhdlFailedToDownloadAssetJson,
+    GhdlUnsafeArchivePath,
 
     ThemezerFailedToDownloadThemeMeta,
     ThemezerFailedToDownloadTheme,
@@ -757,6 +758,7 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(GhdlEmptyAsset),
     MAKE_SPHAIRA_RESULT_ENUM(GhdlFailedToDownloadAsset),
     MAKE_SPHAIRA_RESULT_ENUM(GhdlFailedToDownloadAssetJson),
+    MAKE_SPHAIRA_RESULT_ENUM(GhdlUnsafeArchivePath),
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadThemeMeta),
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadTheme),
     MAKE_SPHAIRA_RESULT_ENUM(MainFailedToDownloadUpdate),

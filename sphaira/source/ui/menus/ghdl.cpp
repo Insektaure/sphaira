@@ -1,6 +1,7 @@
 #include "ui/menus/ghdl.hpp"
 #include "ui/menus/homebrew.hpp"
 
+#include "swkbd.hpp"
 #include "ui/sidebar.hpp"
 #include "ui/option_box.hpp"
 #include "ui/popup_list.hpp"
@@ -15,17 +16,24 @@
 #include "image.hpp"
 #include "download.hpp"
 #include "i18n.hpp"
+#include "minizip_helper.hpp"
 #include "yyjson_helper.hpp"
 #include "threaded_file_transfer.hpp"
 
 #include <minIni.h>
+#include <minizip/unzip.h>
 #include <dirent.h>
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <iterator>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -33,6 +41,8 @@ namespace sphaira::ui::menu::gh {
 namespace {
 
 constexpr auto CACHE_PATH = "/switch/sphaira/cache/github";
+constexpr fs::FsPath DIRECT_LINKS_PATH{"/config/sphaira/github/direct_links.json"};
+constexpr fs::FsPath DIRECT_LINKS_DIRECTORY{"/config/sphaira/github"};
 constexpr fs::FsPath SWITCHPORTS_CACHE_PATH{"/switch/sphaira/cache/github/switchports.md"};
 constexpr auto SWITCHPORTS_README_URL = "https://raw.githubusercontent.com/robzilla10001/SwitchPorts/main/README.md";
 constexpr std::size_t SWITCHPORTS_README_MAX_SIZE = 2 * 1024 * 1024;
@@ -73,6 +83,116 @@ auto Lower(std::string_view value) -> std::string {
 auto EndsWithCaseInsensitive(std::string_view value, std::string_view suffix) -> bool {
     return value.size() >= suffix.size()
         && !strncasecmp(value.data() + value.size() - suffix.size(), suffix.data(), suffix.size());
+}
+
+auto IsHttpUrl(std::string_view url) -> bool {
+    const auto scheme_size = url.size() >= 8 && !strncasecmp(url.data(), "https://", 8) ? 8U
+        : url.size() >= 7 && !strncasecmp(url.data(), "http://", 7) ? 7U
+        : 0U;
+    if (!scheme_size || url.size() == scheme_size) {
+        return false;
+    }
+
+    if (std::ranges::any_of(url, [](unsigned char c){ return c <= 0x20 || c == 0x7F; })) {
+        return false;
+    }
+
+    const auto authority = url.substr(scheme_size, url.find_first_of("/?#", scheme_size) - scheme_size);
+    return !authority.empty() && authority != "." && authority != "..";
+}
+
+auto GetDirectLinkName(std::string_view url) -> std::string {
+    if (const auto end = url.find_first_of("?#"); end != std::string_view::npos) {
+        url = url.substr(0, end);
+    }
+    while (!url.empty() && url.back() == '/') {
+        url.remove_suffix(1);
+    }
+
+    auto name = url.substr(url.find_last_of('/') == std::string_view::npos ? 0 : url.find_last_of('/') + 1);
+    if (EndsWithCaseInsensitive(name, ".zip")) {
+        name.remove_suffix(4);
+    }
+    if (name.empty()) {
+        return "Direct Link"_i18n;
+    }
+    return std::string{name};
+}
+
+auto IsSafeInstallPath(std::string_view path) -> bool {
+    if (path.empty() || path.front() != '/' || path.size() >= PATH_MAX || path.find('\\') != std::string_view::npos) {
+        return false;
+    }
+
+    std::size_t offset{1};
+    while (offset <= path.size()) {
+        const auto slash = path.find('/', offset);
+        const auto segment = path.substr(offset, slash == std::string_view::npos ? path.size() - offset : slash - offset);
+        if (segment == "." || segment == ".." || segment.find(':') != std::string_view::npos
+            || std::ranges::any_of(segment, [](unsigned char c){ return c < 0x20 || c == 0x7F; })) {
+            return false;
+        }
+        if (slash == std::string_view::npos) {
+            break;
+        }
+        offset = slash + 1;
+    }
+    return true;
+}
+
+auto IsSafeArchivePath(std::string_view path) -> bool {
+    if (path.empty() || path.front() == '/' || path.size() >= PATH_MAX || path.find('\\') != std::string_view::npos) {
+        return false;
+    }
+
+    std::size_t offset{};
+    while (offset <= path.size()) {
+        const auto slash = path.find('/', offset);
+        const auto segment = path.substr(offset, slash == std::string_view::npos ? path.size() - offset : slash - offset);
+        if (segment == "." || segment == ".." || segment.find(':') != std::string_view::npos
+            || std::ranges::any_of(segment, [](unsigned char c){ return c < 0x20 || c == 0x7F; })) {
+            return false;
+        }
+        if (slash == std::string_view::npos) {
+            break;
+        }
+        offset = slash + 1;
+    }
+    return true;
+}
+
+auto ValidateDirectArchive(const fs::FsPath& path, const fs::FsPath& install_path, fs::FsNativeSd& fs) -> Result {
+    zlib_filefunc64_def file_func;
+    mz::FileFuncStdio(&file_func);
+
+    auto zfile = unzOpen2_64(path, &file_func);
+    R_UNLESS(zfile, Result_UnzOpen2_64);
+    ON_SCOPE_EXIT(unzClose(zfile));
+
+    unz_global_info64 global_info{};
+    R_UNLESS(UNZ_OK == unzGetGlobalInfo64(zfile, &global_info), Result_UnzGetGlobalInfo64);
+    R_UNLESS(global_info.number_entry && UNZ_OK == unzGoToFirstFile(zfile), Result_UnzGoToFirstFile);
+
+    u64 total_size{};
+    for (u64 i = 0; i < global_info.number_entry; ++i) {
+        if (i) {
+            R_UNLESS(UNZ_OK == unzGoToNextFile(zfile), Result_UnzGoToNextFile);
+        }
+
+        unz_file_info64 info{};
+        fs::FsPath name{};
+        R_UNLESS(UNZ_OK == unzGetCurrentFileInfo64(zfile, &info, name, sizeof(name), nullptr, 0, nullptr, 0), Result_UnzGetCurrentFileInfo64);
+        R_UNLESS(info.size_filename < sizeof(name) && info.size_filename == std::strlen(name)
+            && install_path.size() + info.size_filename + 1 < PATH_MAX && IsSafeArchivePath(name), Result_GhdlUnsafeArchivePath);
+        R_UNLESS(info.uncompressed_size <= std::numeric_limits<u64>::max() - total_size, FsError_UsableSpaceNotEnoughSdCard);
+        total_size += info.uncompressed_size;
+    }
+
+    s64 free_space{};
+    if (R_SUCCEEDED(fs.GetFreeSpace("/", &free_space))) {
+        R_UNLESS(total_size <= static_cast<u64>(std::max<s64>(free_space, 0)), FsError_UsableSpaceNotEnoughSdCard);
+    }
+    R_SUCCEED();
 }
 
 auto StripMarkdown(std::string value) -> std::string {
@@ -211,6 +331,8 @@ void from_json(const fs::FsPath& path, Entry& e) {
     JSON_OBJ_ITR(
         JSON_SET_STR(name);
         JSON_SET_STR(url);
+        JSON_SET_STR(direct_url);
+        JSON_SET_STR(path);
         JSON_SET_STR(owner);
         JSON_SET_STR(repo);
         JSON_SET_STR(tag);
@@ -250,6 +372,115 @@ void from_json(const fs::FsPath& path, std::vector<GhApiEntry>& e) {
         e.resize(1);
         from_json(json, e[0]);
     }
+}
+
+void LoadDirectLinksFile(std::vector<Entry>& entries) {
+    fs::FsNativeSd fs;
+    if (R_FAILED(fs.GetFsOpenResult()) || !fs.FileExists(DIRECT_LINKS_PATH)) {
+        return;
+    }
+
+    std::vector<u8> data;
+    if (R_FAILED(fs.read_entire_file(DIRECT_LINKS_PATH, data)) || data.empty()) {
+        return;
+    }
+
+    auto doc = yyjson_read(reinterpret_cast<const char*>(data.data()), data.size(), YYJSON_READ_ALLOW_TRAILING_COMMAS);
+    if (!doc) {
+        return;
+    }
+    ON_SCOPE_EXIT(yyjson_doc_free(doc));
+
+    auto root = yyjson_doc_get_root(doc);
+    if (yyjson_is_obj(root)) {
+        root = yyjson_obj_get(root, "links");
+    }
+    if (!yyjson_is_arr(root)) {
+        return;
+    }
+
+    size_t index, count;
+    yyjson_val* value;
+    yyjson_arr_foreach(root, index, count, value) {
+        if (!yyjson_is_obj(value)) {
+            continue;
+        }
+
+        auto url_value = yyjson_obj_get(value, "direct_url");
+        if (!yyjson_is_str(url_value)) {
+            url_value = yyjson_obj_get(value, "url");
+        }
+        if (!yyjson_is_str(url_value)) {
+            continue;
+        }
+
+        Entry entry{};
+        entry.direct_url = Trim(yyjson_get_str(url_value));
+        if (!IsHttpUrl(entry.direct_url)) {
+            continue;
+        }
+
+        if (const auto name = yyjson_obj_get(value, "name"); yyjson_is_str(name)) {
+            entry.name = Trim(yyjson_get_str(name));
+        }
+        if (entry.name.empty()) {
+            entry.name = GetDirectLinkName(entry.direct_url);
+        }
+
+        entry.path = "/";
+        if (const auto path = yyjson_obj_get(value, "path"); yyjson_is_str(path) && yyjson_get_len(path)) {
+            entry.path = yyjson_get_str(path);
+        }
+        if (!IsSafeInstallPath(entry.path)) {
+            continue;
+        }
+
+        if (std::ranges::any_of(entries, [&](const auto& existing){ return existing.direct_url == entry.direct_url; })) {
+            continue;
+        }
+
+        entry.owner = "Direct";
+        entry.repo = entry.name;
+        entry.json_path = DIRECT_LINKS_PATH;
+        entry.saved_direct_link = true;
+        entries.emplace_back(std::move(entry));
+    }
+}
+
+auto WriteDirectLinksFile(const std::vector<Entry>& entries) -> Result {
+    auto doc = yyjson_mut_doc_new(nullptr);
+    R_UNLESS(doc, Result_FsStdioFailedToWrite);
+    ON_SCOPE_EXIT(yyjson_mut_doc_free(doc));
+
+    auto root = yyjson_mut_arr(doc);
+    R_UNLESS(root, Result_FsStdioFailedToWrite);
+    yyjson_mut_doc_set_root(doc, root);
+
+    for (const auto& entry : entries) {
+        if (!entry.saved_direct_link || !IsHttpUrl(entry.direct_url)) {
+            continue;
+        }
+
+        auto object = yyjson_mut_arr_add_obj(doc, root);
+        R_UNLESS(object, Result_FsStdioFailedToWrite);
+        R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "name", entry.name.c_str()), Result_FsStdioFailedToWrite);
+        R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "direct_url", entry.direct_url.c_str()), Result_FsStdioFailedToWrite);
+        if (!entry.path.empty() && entry.path != "/") {
+            R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "path", entry.path.c_str()), Result_FsStdioFailedToWrite);
+        }
+    }
+
+    size_t json_size{};
+    auto json = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY, &json_size);
+    R_UNLESS(json, Result_FsStdioFailedToWrite);
+    ON_SCOPE_EXIT(std::free(json));
+
+    fs::FsNativeSd fs;
+    R_TRY(fs.GetFsOpenResult());
+    if (const auto rc = fs.CreateDirectoryRecursively(DIRECT_LINKS_DIRECTORY); R_FAILED(rc) && rc != FsError_PathAlreadyExists) {
+        return rc;
+    }
+    return fs.write_entire_file(DIRECT_LINKS_PATH, std::span<const u8>{reinterpret_cast<const u8*>(json), json_size});
 }
 
 auto ParseSwitchPortsCatalog(std::string_view markdown, std::vector<SwitchPortCategory>& catalog) -> bool {
@@ -424,7 +655,7 @@ auto NormalizeArchivePath(std::string_view archive_name, std::string_view instal
     return true;
 }
 
-auto DownloadApp(ProgressBox* pbox, const GhApiAsset& gh_asset, const AssetEntry* entry) -> Result {
+auto DownloadApp(ProgressBox* pbox, const GhApiAsset& gh_asset, const AssetEntry* entry, bool validate_archive = false) -> Result {
     static const fs::FsPath temp_file{"/switch/sphaira/cache/github/ghdl.temp"};
 
     fs::FsNativeSd fs;
@@ -455,6 +686,9 @@ auto DownloadApp(ProgressBox* pbox, const GhApiAsset& gh_asset, const AssetEntry
     // 3. extract the zip / file
     if (EndsWithCaseInsensitive(gh_asset.name, ".zip") || gh_asset.content_type.find("zip") != gh_asset.content_type.npos) {
         log_write("found zip\n");
+        if (validate_archive) {
+            R_TRY(ValidateDirectArchive(temp_file, root_path, fs));
+        }
         R_TRY(thread::TransferUnzipAll(pbox, temp_file, &fs, root_path));
     } else {
         fs.CreateDirectoryRecursivelyWithPath(root_path);
@@ -853,6 +1087,64 @@ void OpenSwitchPortsCatalog() {
     });
 }
 
+void DownloadDirectEntry(const Entry& entry, const std::function<void()>& on_success = {}) {
+    const auto start_download = [entry, on_success]() {
+        GhApiAsset asset{};
+        asset.name = entry.name + ".zip";
+        asset.content_type = "application/zip";
+        asset.browser_download_url = entry.direct_url;
+
+        AssetEntry install{};
+        install.path = entry.path.empty() ? "/" : entry.path;
+
+        App::Push<ProgressBox>(0, "Downloading "_i18n, entry.name, [asset, install](auto pbox) -> Result {
+            return DownloadApp(pbox, asset, &install, true);
+        }, [entry, on_success](Result rc) {
+            auto error = "Failed to download app!"_i18n;
+            if (rc == Result_UnzOpen2_64) {
+                error = "The downloaded file is not a valid ZIP archive."_i18n;
+            } else if (rc == Result_GhdlUnsafeArchivePath) {
+                error = "The ZIP contains an unsafe file path."_i18n;
+            } else if (rc == FsError_UsableSpaceNotEnoughSdCard) {
+                error = "There is not enough free space on the SD card."_i18n;
+            }
+            App::PushErrorBox(rc, error);
+            if (R_FAILED(rc)) {
+                return;
+            }
+
+            homebrew::SignalChange();
+            App::Notify(i18n::Reorder("Downloaded ", entry.name));
+
+            if (!entry.post_install_message.empty()) {
+                App::Push<OptionBox>(entry.post_install_message, "OK"_i18n, [on_success](auto) {
+                    if (on_success) {
+                        on_success();
+                    }
+                });
+            } else if (on_success) {
+                on_success();
+            }
+        });
+    };
+
+    if (!entry.pre_install_message.empty()) {
+        App::Push<OptionBox>(
+            entry.pre_install_message,
+            "Back"_i18n,
+            "Download"_i18n,
+            0,
+            [start_download](auto index) {
+                if (index && *index == 1) {
+                    start_download();
+                }
+            }
+        );
+    } else {
+        start_download();
+    }
+}
+
 } // namespace
 
 Menu::Menu(u32 flags) : MenuBase{"GitHub"_i18n, flags} {
@@ -873,6 +1165,10 @@ Menu::Menu(u32 flags) : MenuBase{"GitHub"_i18n, flags} {
 
         std::make_pair(Button::B, Action{"Back"_i18n, [this](){
             SetPop();
+        }}),
+
+        std::make_pair(Button::Y, Action{"Direct Link"_i18n, [this](){
+            PromptDirectLink();
         }})
     );
 
@@ -945,6 +1241,7 @@ void Menu::SetIndex(s64 index) {
     if (m_entries.empty()) {
         m_index = 0;
         SetTitleSubHeading("");
+        RemoveAction(Button::X);
         UpdateSubheading();
         return;
     }
@@ -954,7 +1251,15 @@ void Menu::SetIndex(s64 index) {
         m_list->SetYoff(0);
     }
 
-    SetTitleSubHeading(m_entries[m_index].json_path);
+    const auto& entry = m_entries[m_index];
+    SetTitleSubHeading(entry.direct_url.empty() ? entry.json_path.toString() : entry.direct_url);
+    if (entry.saved_direct_link) {
+        SetAction(Button::X, Action{"Remove"_i18n, [this](){
+            RemoveSelectedDirectLink();
+        }});
+    } else {
+        RemoveAction(Button::X);
+    }
     UpdateSubheading();
 }
 
@@ -969,6 +1274,7 @@ void Menu::Scan() {
 
     // then load custom entries
     LoadEntriesFromPath("/config/sphaira/github/");
+    LoadDirectLinks();
     Sort();
     SetIndex(0);
 }
@@ -1003,14 +1309,134 @@ void Menu::LoadEntriesFromPath(const fs::FsPath& path) {
             ParseGithubUrl(entry.url, entry.owner, entry.repo);
         }
 
-        // check that we have a owner and repo
-        if (entry.owner.empty() || entry.repo.empty()) {
+        if (!entry.direct_url.empty()) {
+            entry.direct_url = Trim(entry.direct_url);
+            if (!IsHttpUrl(entry.direct_url)) {
+                continue;
+            }
+            if (entry.name.empty()) {
+                entry.name = GetDirectLinkName(entry.direct_url);
+            }
+            if (entry.path.empty()) {
+                entry.path = "/";
+            }
+            if (!IsSafeInstallPath(entry.path)) {
+                continue;
+            }
+            entry.owner = "Direct";
+            entry.repo = entry.name;
+        } else if (entry.owner.empty() || entry.repo.empty()) {
             continue;
         }
 
         entry.json_path = full_path;
         m_entries.emplace_back(entry);
     }
+}
+
+void Menu::LoadDirectLinks() {
+    LoadDirectLinksFile(m_entries);
+}
+
+void Menu::PromptDirectLink() {
+    std::string url;
+    if (R_FAILED(swkbd::ShowText(
+        url,
+        "Direct Link"_i18n.c_str(),
+        "Enter a direct ZIP URL"_i18n.c_str(),
+        "https://",
+        8,
+        PATH_MAX - 1
+    ))) {
+        return;
+    }
+
+    url = Trim(url);
+    if (!IsHttpUrl(url)) {
+        App::Notify("Enter a valid HTTP or HTTPS URL"_i18n);
+        return;
+    }
+
+    Entry entry{};
+    entry.name = GetDirectLinkName(url);
+    entry.direct_url = std::move(url);
+    entry.path = "/";
+    entry.owner = "Direct";
+    entry.repo = entry.name;
+
+    DownloadDirectEntry(entry, [this, entry]() {
+        if (std::ranges::any_of(m_entries, [&](const auto& existing){ return existing.direct_url == entry.direct_url; })) {
+            return;
+        }
+
+        App::Push<OptionBox>(
+            "Save this direct link?"_i18n,
+            "No"_i18n,
+            "Yes"_i18n,
+            0,
+            [this, entry](auto index) {
+                if (index && *index == 1) {
+                    SaveDirectLink(entry);
+                }
+            }
+        );
+    });
+}
+
+void Menu::SaveDirectLink(const Entry& direct_entry) {
+    if (std::ranges::any_of(m_entries, [&](const auto& entry){ return entry.direct_url == direct_entry.direct_url; })) {
+        App::Notify("Direct link is already saved"_i18n);
+        return;
+    }
+
+    auto entry = direct_entry;
+    entry.json_path = DIRECT_LINKS_PATH;
+    entry.saved_direct_link = true;
+    m_entries.emplace_back(std::move(entry));
+
+    if (const auto rc = WriteDirectLinksFile(m_entries); R_FAILED(rc)) {
+        m_entries.pop_back();
+        App::PushErrorBox(rc, "Failed to save direct link"_i18n);
+        return;
+    }
+
+    Sort();
+    const auto found = std::ranges::find(m_entries, direct_entry.direct_url, &Entry::direct_url);
+    SetIndex(found == m_entries.end() ? 0 : std::distance(m_entries.begin(), found));
+    App::Notify("Direct link saved"_i18n);
+}
+
+void Menu::RemoveSelectedDirectLink() {
+    if (m_entries.empty() || !GetEntry().saved_direct_link) {
+        return;
+    }
+
+    const auto name = GetEntry().name;
+    App::Push<OptionBox>(
+        "Remove saved direct link?"_i18n,
+        "Back"_i18n,
+        "Remove"_i18n,
+        0,
+        [this, name](auto index) {
+            if (!index || *index != 1 || m_entries.empty() || !GetEntry().saved_direct_link) {
+                return;
+            }
+
+            const auto removed = m_entries[m_index];
+            m_entries.erase(m_entries.begin() + m_index);
+            if (const auto rc = WriteDirectLinksFile(m_entries); R_FAILED(rc)) {
+                m_entries.emplace_back(removed);
+                Sort();
+                const auto restored = std::ranges::find(m_entries, removed.direct_url, &Entry::direct_url);
+                SetIndex(restored == m_entries.end() ? 0 : std::distance(m_entries.begin(), restored));
+                App::PushErrorBox(rc, "Failed to remove direct link"_i18n);
+                return;
+            }
+
+            SetIndex(m_entries.empty() ? 0 : std::min<s64>(m_index, m_entries.size() - 1));
+            App::Notify(i18n::Reorder("Removed ", name));
+        }
+    );
 }
 
 void Menu::Sort() {
@@ -1038,6 +1464,11 @@ void Menu::UpdateSubheading() {
 }
 
 void DownloadEntries(const Entry& entry) {
+    if (!entry.direct_url.empty()) {
+        DownloadDirectEntry(entry);
+        return;
+    }
+
     auto gh_entries = std::make_shared<std::vector<GhApiEntry>>();
 
     App::Push<ProgressBox>(0, "Downloading "_i18n, entry.repo, [entry, gh_entries](auto pbox) -> Result {
