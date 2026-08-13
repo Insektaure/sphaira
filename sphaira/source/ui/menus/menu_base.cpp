@@ -99,15 +99,17 @@ void MenuBase::Draw(NVGcontext* vg, Theme* theme) {
     gfx::drawRect(vg, storage_x + 2, storage_y + 24 + 2, STORAGE_BAR_W - (((double)pdata.sd_free / (double)pdata.sd_total) * STORAGE_BAR_W) - 4, STORAGE_BAR_H - 4, theme->GetColour(ThemeEntryID_TEXT_INFO), rounding);
     start_x -= (STORAGE_BAR_W + spacing) * 2;
 
-    // Draw status information as one horizontal group immediately to the
-    // left of the storage meters. Keeping Wi-Fi and IP on the same baseline
-    // as Applet Mode also gives the title/path a reliable clipping boundary.
-    auto status_x = start_x;
-    const auto draw_status = [&](ThemeEntryID colour, const std::string& text) {
-        gfx::drawText(vg, status_x, start_y, font_size, theme->GetColour(colour), text.c_str(), NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
+    const auto status_right = start_x;
+    auto status_content_left = status_right;
+    const auto draw_status = [&](ThemeEntryID colour, const std::string& text, float y) {
+        gfx::drawText(vg, status_right, y, font_size, theme->GetColour(colour), text.c_str(), NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
         gfx::textBounds(vg, 0, 0, bounds, text.c_str());
-        status_x -= spacing + (bounds[2] - bounds[0]);
+        status_content_left = std::min(status_content_left, status_right - (bounds[2] - bounds[0]));
     };
+
+    if (!App::IsApplication()) {
+        draw_status(ThemeEntryID_ERROR, "[Applet Mode]"_i18n, start_y - 28.f);
+    }
 
     if (App::GetApp()->m_show_ip_addr.Get()) {
         if (pdata.ip) {
@@ -123,20 +125,11 @@ void MenuBase::Draw(NVGcontext* vg, Theme* theme) {
                 std::snprintf(type_buf, sizeof(type_buf), "Unknown"_i18n.c_str());
             }
 
-            draw_status(ThemeEntryID_TEXT, std::string{type_buf} + " | " + ip_buf);
+            draw_status(ThemeEntryID_TEXT, std::string{type_buf} + " | " + ip_buf, start_y);
         } else {
-            draw_status(ThemeEntryID_TEXT, "No Internet"_i18n);
+            draw_status(ThemeEntryID_TEXT, "No Internet"_i18n, start_y);
         }
     }
-
-    if (!App::IsApplication()) {
-        draw_status(ThemeEntryID_ERROR, "[Applet Mode]"_i18n);
-    }
-
-    // status_x includes the spacing reserved before the leftmost status item.
-    // The subheading is clipped before that item and ScrollingText handles a
-    // long homebrew/file path without drawing underneath the status group.
-    const auto status_content_left = status_x + spacing;
 
     gfx::drawRect(vg, 30.f, 86.f, 1220.f, 1.f, theme->GetColour(ThemeEntryID_LINE));
     gfx::drawRect(vg, 30.f, 646.0f, 1220.f, 1.f, theme->GetColour(ThemeEntryID_LINE));
