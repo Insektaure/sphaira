@@ -1145,5 +1145,11 @@
   "Section #": "Numéro de section",
   "by ": "par ",
   "Default install folder: ": "Dossier d'installation par défaut : ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "Cœurs du processeur",
+  "3 (Default)": "3 (Par défaut)",
+  "4 (Advanced)": "4 (Avancé)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 cœurs du processeur\n\nLe cœur 3 est partagé avec les services système. Activez cette option uniquement pour les homebrews qui gèrent correctement l'affinité des threads ; une utilisation sans restriction peut provoquer des ralentissements ou une instabilité du système.",
+  "Failed to launch homebrew": "Impossible de lancer l'homebrew",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Trois cœurs réservent le cœur 3 aux services système. Utilisez quatre cœurs uniquement avec les homebrews qui gèrent correctement l'affinité des threads."
 }

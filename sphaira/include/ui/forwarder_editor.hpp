@@ -15,6 +15,7 @@ struct Values {
     std::vector<u8> icon;
     bool profile_selection{};
     ForwarderAddressSpace address_space{ForwarderAddressSpace::Bit36};
+    CpuCoreMode core_mode{CpuCoreMode::Three};
     bool screenshot{true};
     bool video_capture{true};
     ForwarderSvcDebugMode svc_debug_mode{ForwarderSvcDebugMode::Automatic};

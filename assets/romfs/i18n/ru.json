@@ -1145,5 +1145,11 @@
   "Section #": "Раздел №",
   "by ": "от ",
   "Default install folder: ": "Папка установки по умолчанию: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "Ядра ЦП",
+  "3 (Default)": "3 (По умолчанию)",
+  "4 (Advanced)": "4 (Расширенный)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 ядра ЦП\n\nЯдро 3 используется совместно с системными службами. Включайте этот режим только для homebrew, которое правильно управляет привязкой потоков; неограниченное использование может вызвать задержки или нестабильность системы.",
+  "Failed to launch homebrew": "Не удалось запустить homebrew",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Режим с тремя ядрами резервирует ядро 3 для системных служб. Используйте четыре ядра только с homebrew, которое правильно управляет привязкой потоков."
 }

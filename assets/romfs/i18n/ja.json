@@ -1103,5 +1103,11 @@
   "Section #": "セクション #",
   "by ": "作成者：",
   "Default install folder: ": "デフォルトのインストールフォルダー：",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "CPUコア",
+  "3 (Default)": "3（既定）",
+  "4 (Advanced)": "4（上級）",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "CPU 4コア\n\nコア3はシステムサービスと共有されます。スレッドアフィニティを正しく管理するHomebrewでのみ有効にしてください。無制限に使用すると、システムの遅延や不安定化を招く可能性があります。",
+  "Failed to launch homebrew": "Homebrewを起動できませんでした",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "3コアではコア3をシステムサービス用に予約します。4コアは、スレッドアフィニティを正しく管理するHomebrewでのみ使用してください。"
 }

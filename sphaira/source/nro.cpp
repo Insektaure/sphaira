@@ -3,6 +3,7 @@
 #include "evman.hpp"
 #include "app.hpp"
 #include "log.hpp"
+#include "owo.hpp"
 
 #include <switch.h>
 #include <vector>
@@ -326,6 +327,25 @@ auto nro_launch(std::string path, std::string args) -> Result {
     }
 
     return launch_internal(path, args);
+}
+
+auto nro_launch(std::string path, std::string args, CpuCoreMode core_mode) -> Result {
+    R_UNLESS(!path.empty(), Result_OwoBadArgs);
+
+    if (!path.starts_with("sdmc:")) {
+        path = "sdmc:" + path;
+    }
+
+    if (args.empty()) {
+        args = nro_add_arg(path);
+    } else {
+        args = nro_add_arg(path) + ' ' + args;
+    }
+
+    R_TRY(prepare_core_launch(path, args, core_mode));
+    log_write("set core launch with path: %s argv: %s cores: %u\n", path.c_str(), args.c_str(), static_cast<u32>(core_mode));
+    evman::push(evman::LaunchNroEventData{path, args});
+    R_SUCCEED();
 }
 
 auto nro_add_arg(std::string arg) -> std::string {

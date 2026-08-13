@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "ui/progress_box.hpp"
+#include "utils/core.hpp"
 
 namespace sphaira {
 
@@ -29,6 +30,7 @@ struct OwoConfig {
     std::vector<u8> gif;
     bool profile_selection{};
     ForwarderAddressSpace address_space{ForwarderAddressSpace::Bit36};
+    CpuCoreMode core_mode{CpuCoreMode::Three};
     bool screenshot{true};
     bool video_capture{true};
     ForwarderSvcDebugMode svc_debug_mode{ForwarderSvcDebugMode::Automatic};
@@ -38,5 +40,7 @@ struct OwoConfig {
 
 auto install_forwarder(OwoConfig& config, NcmStorageId storage_id) -> Result;
 auto install_forwarder(ui::ProgressBox* pbox, OwoConfig& config, NcmStorageId storage_id) -> Result;
+auto prepare_core_launch(const std::string& nro_path, const std::string& args, CpuCoreMode core_mode) -> Result;
+auto core_launch_pending() -> bool;
 
 } // namespace sphaira

@@ -309,6 +309,7 @@ void ShowForwarderEditor(const FileAssocEntry& assoc, const RomDatabaseIndexs& d
         config.icon = values.icon;
         config.profile_selection = values.profile_selection;
         config.address_space = values.address_space;
+        config.core_mode = values.core_mode;
         config.screenshot = values.screenshot;
         config.video_capture = values.video_capture;
         config.svc_debug_mode = values.svc_debug_mode;

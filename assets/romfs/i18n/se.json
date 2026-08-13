@@ -1147,5 +1147,11 @@
   "Section #": "Avsnitt #",
   "by ": "av ",
   "Default install folder: ": "Standardinstallationsmapp: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "CPU-kärnor",
+  "3 (Default)": "3 (Standard)",
+  "4 (Advanced)": "4 (Avancerat)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 CPU-kärnor\n\nKärna 3 delas med systemtjänster. Aktivera detta endast för homebrew som hanterar trådaffinitet korrekt; obegränsad användning kan orsaka systemfördröjning eller instabilitet.",
+  "Failed to launch homebrew": "Det gick inte att starta homebrew",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Tre kärnor reserverar kärna 3 för systemtjänster. Fyra kärnor bör endast användas med homebrew som hanterar trådaffinitet korrekt."
 }

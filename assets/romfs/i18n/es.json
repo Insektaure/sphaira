@@ -1148,5 +1148,11 @@
   "Section #": "Sección #",
   "by ": "por ",
   "Default install folder: ": "Carpeta de instalación predeterminada: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "Núcleos de CPU",
+  "3 (Default)": "3 (Predeterminado)",
+  "4 (Advanced)": "4 (Avanzado)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 núcleos de CPU\n\nEl núcleo 3 se comparte con los servicios del sistema. Actívalo solo para homebrew que gestione correctamente la afinidad de hilos; el uso sin restricciones puede causar retrasos o inestabilidad.",
+  "Failed to launch homebrew": "No se pudo iniciar el homebrew",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Tres núcleos reservan el núcleo 3 para los servicios del sistema. Usa cuatro núcleos solo con homebrew que gestione correctamente la afinidad de hilos."
 }

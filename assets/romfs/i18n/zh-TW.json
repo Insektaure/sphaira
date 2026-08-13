@@ -1086,5 +1086,11 @@
   "Section #": "區段 #",
   "by ": "作者：",
   "Default install folder: ": "預設安裝資料夾：",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "CPU 核心",
+  "3 (Default)": "3（預設）",
+  "4 (Advanced)": "4（進階）",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 個 CPU 核心\n\n核心 3 與系統服務共用。僅對能正確管理執行緒親和性的自製軟體啟用；不受限制地使用可能導致系統延遲或不穩定。",
+  "Failed to launch homebrew": "無法啟動自製軟體",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "三核心模式會將核心 3 保留給系統服務。四核心僅應用於能正確管理執行緒親和性的自製軟體。"
 }

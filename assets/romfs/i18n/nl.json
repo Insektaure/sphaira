@@ -1145,5 +1145,11 @@
   "Section #": "Sectie #",
   "by ": "door ",
   "Default install folder: ": "Standaard installatiemap: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "CPU-kernen",
+  "3 (Default)": "3 (Standaard)",
+  "4 (Advanced)": "4 (Geavanceerd)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 CPU-kernen\n\nKern 3 wordt gedeeld met systeemservices. Schakel dit alleen in voor homebrew die threadaffiniteit correct beheert; onbeperkt gebruik kan systeemvertraging of instabiliteit veroorzaken.",
+  "Failed to launch homebrew": "Homebrew kon niet worden gestart",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Drie kernen reserveren kern 3 voor systeemservices. Gebruik vier kernen alleen met homebrew die threadaffiniteit correct beheert."
 }

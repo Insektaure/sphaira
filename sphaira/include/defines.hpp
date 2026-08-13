@@ -534,6 +534,7 @@ enum class SphairaResult : Result {
 
     NroBadMagic,
     NroBadSize,
+    CoreUnavailable,
 
     AppFailedMusicDownload,
     CurlFailedEasyInit,
@@ -716,6 +717,7 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(FsFailedStdioOpendir),
     MAKE_SPHAIRA_RESULT_ENUM(NroBadMagic),
     MAKE_SPHAIRA_RESULT_ENUM(NroBadSize),
+    MAKE_SPHAIRA_RESULT_ENUM(CoreUnavailable),
     MAKE_SPHAIRA_RESULT_ENUM(AppFailedMusicDownload),
     MAKE_SPHAIRA_RESULT_ENUM(CurlFailedEasyInit),
     MAKE_SPHAIRA_RESULT_ENUM(DumpFailedNetworkUpload),

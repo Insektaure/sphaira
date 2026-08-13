@@ -1147,5 +1147,11 @@
   "Section #": "Phần #",
   "by ": "bởi ",
   "Default install folder: ": "Thư mục cài đặt mặc định: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "Lõi CPU",
+  "3 (Default)": "3 (Mặc định)",
+  "4 (Advanced)": "4 (Nâng cao)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "4 lõi CPU\n\nLõi 3 được dùng chung với các dịch vụ hệ thống. Chỉ bật tùy chọn này cho homebrew quản lý đúng liên kết luồng; việc sử dụng không giới hạn có thể gây giật hoặc mất ổn định hệ thống.",
+  "Failed to launch homebrew": "Không thể khởi chạy homebrew",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "Chế độ ba lõi dành lõi 3 cho các dịch vụ hệ thống. Chỉ dùng bốn lõi với homebrew quản lý đúng liên kết luồng."
 }

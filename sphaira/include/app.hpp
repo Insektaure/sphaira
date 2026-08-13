@@ -173,6 +173,10 @@ public:
         return !IsApplication();
     }
 
+    static auto CanSetCpuCores() -> bool {
+        return IsApplication() && GetApp()->m_is_launched_via_sphaira_forwader;
+    }
+
     // returns true if launched in applet mode with a title suspended in the background.
     static auto IsAppletWithSuspendedApp() -> bool {
         R_UNLESS(IsApplet(), false);

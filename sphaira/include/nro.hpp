@@ -6,6 +6,7 @@
 #include <span>
 #include <optional>
 #include "fs.hpp"
+#include "utils/core.hpp"
 
 namespace sphaira {
 
@@ -17,6 +18,7 @@ struct NroData {
 struct Hbini {
     u64 timestamp{}; // timestamp of last launch
     bool hidden{};
+    CpuCoreMode core_mode{CpuCoreMode::Three};
 };
 
 struct MiniNacp {
@@ -76,6 +78,7 @@ auto nro_update_info(const fs::FsPath& path, std::string_view name, std::span<co
 
 // path is pre-appended to args, such that argv[0] == path
 auto nro_launch(std::string path, std::string args = {}) -> Result;
+auto nro_launch(std::string path, std::string args, CpuCoreMode core_mode) -> Result;
 
 // if the arg contains a space, it will wrap it in quotes
 auto nro_add_arg(std::string arg) -> std::string;

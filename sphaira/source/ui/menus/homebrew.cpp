@@ -14,6 +14,7 @@
 
 #include "utils/devoptab.hpp"
 #include "utils/profile.hpp"
+#include "utils/core.hpp"
 
 #include "owo.hpp"
 #include "defines.hpp"
@@ -61,7 +62,10 @@ Menu::Menu(u32 flags) : grid::Menu{"Homebrew"_i18n, flags} {
 
     this->SetActions(
         std::make_pair(Button::A, Action{"Launch"_i18n, [this](){
-            nro_launch(GetEntry().path);
+            const auto rc = App::CanSetCpuCores()
+                ? nro_launch(GetEntry().path, {}, GetEntry().hbini.core_mode)
+                : nro_launch(GetEntry().path);
+            App::PushErrorBox(rc, "Failed to launch homebrew"_i18n);
         }}),
         std::make_pair(Button::X, Action{"Options"_i18n, [this](){
             DisplayOptions();
@@ -271,6 +275,8 @@ void Menu::ScanHomebrew() {
                 user->ini->timestamp = ini_parse_getl(Value, 0);
             } else if (!strcmp(Key, "hidden")) {
                 user->ini->hidden = ini_parse_getbool(Value, false);
+            } else if (!strcmp(Key, "cpu_cores")) {
+                user->ini->core_mode = ini_parse_getl(Value, 3) == 4 ? CpuCoreMode::Four : CpuCoreMode::Three;
             }
         }
 
@@ -489,6 +495,7 @@ void Menu::ShowForwarderForm(const fs::FsPath& path, std::vector<u8> icon) {
         config.icon = values.icon;
         config.profile_selection = values.profile_selection;
         config.address_space = values.address_space;
+        config.core_mode = values.core_mode;
         config.screenshot = values.screenshot;
         config.video_capture = values.video_capture;
         config.svc_debug_mode = values.svc_debug_mode;
@@ -566,6 +573,34 @@ void Menu::DisplayOptions() {
             CustomizeHomebrew();
         }, true, "Change the name and icon embedded in the selected NRO."_i18n);
         customize_entry->Depends([this](){ return GetEntry().is_nacp_valid; }, "This NRO does not contain editable application information."_i18n);
+
+        if (App::CanSetCpuCores()) {
+            SidebarEntryArray::Items core_items;
+            core_items.push_back("3 (Default)"_i18n);
+            core_items.push_back("4 (Advanced)"_i18n);
+            options->Add<SidebarEntryArray>("CPU Cores"_i18n, core_items, [this](s64& index_out){
+                if (index_out == 1) {
+                    index_out = GetEntry().hbini.core_mode == CpuCoreMode::Four ? 1 : 0;
+                    App::Push<OptionBox>(
+                        "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability."_i18n,
+                        "Back"_i18n,
+                        "Enable"_i18n,
+                        0,
+                        [this](auto index) {
+                            if (index && *index == 1) {
+                                GetEntry().hbini.core_mode = CpuCoreMode::Four;
+                                ini_putl(GetEntry().path, "cpu_cores", 4, App::PLAYLOG_PATH);
+                                App::PopToMenu();
+                            }
+                        }
+                    );
+                } else {
+                    GetEntry().hbini.core_mode = CpuCoreMode::Three;
+                    ini_putl(GetEntry().path, "cpu_cores", 3, App::PLAYLOG_PATH);
+                }
+            }, GetEntry().hbini.core_mode == CpuCoreMode::Four ? 1 : 0,
+                "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly."_i18n);
+        }
 
         options->Add<SidebarEntryBool>("Hide"_i18n, GetEntry().hbini.hidden, [this](bool& v_out){
             ini_putl(GetEntry().path, "hidden", v_out, App::PLAYLOG_PATH);

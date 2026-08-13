@@ -22,11 +22,11 @@ namespace sphaira::ui::forwarder {
 namespace {
 
 enum class Row {
-    Title,
     Author,
     Version,
     ProfileSelection,
     AddressSpace,
+    CpuCores,
     Screenshot,
     VideoCapture,
     SvcDebug,
@@ -51,7 +51,6 @@ public:
             std::make_pair(Button::B, Action{"Back"_i18n, [this](){ SetPop(); }})
         );
 
-        m_rows.emplace_back(Row::Title);
         if (m_show_author) {
             m_rows.emplace_back(Row::Author);
         }
@@ -61,6 +60,7 @@ public:
         if (m_show_forwarder_options) {
             m_rows.emplace_back(Row::ProfileSelection);
             m_rows.emplace_back(Row::AddressSpace);
+            m_rows.emplace_back(Row::CpuCores);
             m_rows.emplace_back(Row::Screenshot);
             m_rows.emplace_back(Row::VideoCapture);
             m_rows.emplace_back(Row::SvcDebug);
@@ -89,17 +89,44 @@ public:
     void Update(Controller* controller, TouchInfo* touch) override {
         Widget::Update(controller, touch);
 
+        if (touch->is_clicked && touch->in_range(m_title_box)) {
+            if (!m_title_focused) {
+                App::PlaySoundEffect(SoundEffect::Focus);
+            }
+            m_title_focused = true;
+            m_icon_focused = false;
+            EditText(m_values.title, m_title_label, 1, sizeof(NacpLanguageEntry::name) - 1);
+            return;
+        }
+
         if (touch->is_clicked && touch->in_range(m_icon_box)) {
             if (!m_icon_focused) {
                 App::PlaySoundEffect(SoundEffect::Focus);
             }
             m_icon_focused = true;
+            m_title_focused = false;
             ChooseIconSource();
             return;
         }
 
+        if (m_title_focused) {
+            if (controller->GotDown(Button::DOWN)) {
+                App::PlaySoundEffect(SoundEffect::Focus);
+                m_title_focused = false;
+                m_icon_focused = true;
+            } else if (controller->GotDown(Button::RIGHT)) {
+                App::PlaySoundEffect(SoundEffect::Focus);
+                m_title_focused = false;
+            }
+            return;
+        }
+
         if (m_icon_focused) {
-            if (controller->GotDown(Button::RIGHT)) {
+            if (controller->GotDown(Button::UP)) {
+                App::PlaySoundEffect(SoundEffect::Focus);
+                m_icon_focused = false;
+                m_title_focused = true;
+            } else if (controller->GotDown(Button::RIGHT)) {
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_icon_focused = false;
             }
@@ -109,6 +136,7 @@ public:
         if (controller->GotDown(Button::LEFT)) {
             App::PlaySoundEffect(SoundEffect::Focus);
             m_icon_focused = true;
+            m_title_focused = false;
             return;
         }
 
@@ -118,6 +146,7 @@ public:
             } else {
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_icon_focused = false;
+                m_title_focused = false;
                 m_index = index;
             }
         });
@@ -128,32 +157,32 @@ public:
         m_scroll_screen_title.Draw(vg, true, 70.f, 55.f, 520.f, 30.f,
             NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, theme->GetColour(ThemeEntryID_TEXT), m_screen_title);
 
-        float app_title_bounds[4]{};
-        nvgFontSize(vg, 18.f);
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-        nvgTextBounds(vg, 0.f, 0.f, m_values.title.c_str(), nullptr, app_title_bounds);
-        const auto app_title_width = std::min(520.f, std::max(0.f, app_title_bounds[2] - app_title_bounds[0]));
-        const auto app_title_x = 1210.f - app_title_width;
-        m_scroll_app_title.Draw(vg, true, app_title_x, 55.f, app_title_width, 18.f,
-            NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, theme->GetColour(ThemeEntryID_TEXT_INFO), m_values.title);
         gfx::drawRect(vg, 30.f, 86.f, 1220.f, 1.f, theme->GetColour(ThemeEntryID_LINE));
         gfx::drawRect(vg, 30.f, 646.f, 1220.f, 1.f, theme->GetColour(ThemeEntryID_LINE));
 
         const Vec4 icon_panel{55.f, 110.f, 350.f, 510.f};
         DrawElement(icon_panel, ThemeEntryID_GRID);
-        if (m_icon_focused) {
-            gfx::drawRectOutline(vg, theme, 4.f, icon_panel);
+
+        DrawElement(m_title_box, ThemeEntryID_GRID);
+        if (m_title_focused) {
+            gfx::drawRectOutline(vg, theme, 4.f, m_title_box);
         }
+        gfx::drawText(vg, 90.f, 140.f, 16.f, theme->GetColour(ThemeEntryID_TEXT_INFO), m_title_label.c_str(), NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        m_scroll_app_title.Draw(vg, m_title_focused, 90.f, 168.f, 280.f, 20.f,
+            NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, theme->GetColour(m_title_focused ? ThemeEntryID_TEXT_SELECTED : ThemeEntryID_TEXT), m_values.title);
 
         const auto preview = m_preview > 0 ? m_preview : App::GetDefaultImage();
+        if (m_icon_focused) {
+            gfx::drawRectOutline(vg, theme, 4.f, m_icon_box);
+        }
         gfx::drawImage(vg, m_icon_box, preview, 8.f);
-        gfx::drawText(vg, 230.f, 450.f, 22.f, theme->GetColour(m_icon_focused ? ThemeEntryID_TEXT_SELECTED : ThemeEntryID_TEXT), "Icon"_i18n.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-        gfx::drawText(vg, 230.f, 485.f, 17.f, theme->GetColour(ThemeEntryID_TEXT_INFO), m_icon_source.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-        gfx::drawTextBox(vg, 85.f, 525.f, 16.f, 290.f, theme->GetColour(ThemeEntryID_TEXT_INFO), "Press A or tap the icon to change it"_i18n.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_TOP);
+        gfx::drawText(vg, 230.f, 520.f, 22.f, theme->GetColour(m_icon_focused ? ThemeEntryID_TEXT_SELECTED : ThemeEntryID_TEXT), "Icon"_i18n.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+        gfx::drawText(vg, 230.f, 550.f, 17.f, theme->GetColour(ThemeEntryID_TEXT_INFO), m_icon_source.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+        gfx::drawTextBox(vg, 85.f, 580.f, 16.f, 290.f, theme->GetColour(ThemeEntryID_TEXT_INFO), "Press A or tap the icon to change it"_i18n.c_str(), NVG_ALIGN_CENTER | NVG_ALIGN_TOP);
 
         m_list->Draw(vg, theme, m_rows.size(), [this](auto* vg, auto* theme, const Vec4& pos, s64 index){
             const auto row = m_rows[index];
-            const auto selected = !m_icon_focused && m_index == index;
+            const auto selected = !m_title_focused && !m_icon_focused && m_index == index;
             DrawElement(pos, ThemeEntryID_GRID);
             if (selected) {
                 gfx::drawRectOutline(vg, theme, 4.f, pos);
@@ -198,15 +227,17 @@ public:
 
 private:
     void Activate() {
+        if (m_title_focused) {
+            EditText(m_values.title, m_title_label, 1, sizeof(NacpLanguageEntry::name) - 1);
+            return;
+        }
+
         if (m_icon_focused) {
             ChooseIconSource();
             return;
         }
 
         switch (m_rows[m_index]) {
-            case Row::Title:
-                EditText(m_values.title, "App Title"_i18n, 1, sizeof(NacpLanguageEntry::name) - 1);
-                break;
             case Row::Author:
                 EditText(m_values.author, "Author"_i18n, 1, sizeof(NacpLanguageEntry::author) - 1);
                 break;
@@ -219,6 +250,23 @@ private:
             case Row::AddressSpace:
                 m_values.address_space = m_values.address_space == ForwarderAddressSpace::Bit36
                     ? ForwarderAddressSpace::Bit39 : ForwarderAddressSpace::Bit36;
+                break;
+            case Row::CpuCores:
+                if (m_values.core_mode == CpuCoreMode::Four) {
+                    m_values.core_mode = CpuCoreMode::Three;
+                } else {
+                    App::Push<OptionBox>(
+                        "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability."_i18n,
+                        "Back"_i18n,
+                        "Enable"_i18n,
+                        0,
+                        [this](auto index) {
+                            if (index && *index == 1) {
+                                m_values.core_mode = CpuCoreMode::Four;
+                            }
+                        }
+                    );
+                }
                 break;
             case Row::Screenshot:
                 m_values.screenshot = !m_values.screenshot;
@@ -335,11 +383,11 @@ private:
 
     auto GetRowLabel(Row row) const -> std::string {
         switch (row) {
-            case Row::Title: return m_title_label;
             case Row::Author: return "Author"_i18n;
             case Row::Version: return "Version"_i18n;
             case Row::ProfileSelection: return "Profile Selection"_i18n;
             case Row::AddressSpace: return "Address Space"_i18n;
+            case Row::CpuCores: return "CPU Cores"_i18n;
             case Row::Screenshot: return "Screenshots"_i18n;
             case Row::VideoCapture: return "Video Capture"_i18n;
             case Row::SvcDebug: return "svcDebug Mode"_i18n;
@@ -350,11 +398,11 @@ private:
 
     auto GetRowValue(Row row) const -> std::string {
         switch (row) {
-            case Row::Title: return m_values.title;
             case Row::Author: return m_values.author;
             case Row::Version: return m_values.version;
             case Row::ProfileSelection: return m_values.profile_selection ? "Enabled"_i18n : "Disabled"_i18n;
             case Row::AddressSpace: return m_values.address_space == ForwarderAddressSpace::Bit36 ? "36-bit (Default)"_i18n : "39-bit"_i18n;
+            case Row::CpuCores: return m_values.core_mode == CpuCoreMode::Three ? "3 (Default)"_i18n : "4 (Advanced)"_i18n;
             case Row::Screenshot: return m_values.screenshot ? "Enabled"_i18n : "Disabled"_i18n;
             case Row::VideoCapture: return m_values.video_capture ? "Enabled"_i18n : "Disabled"_i18n;
             case Row::SvcDebug:
@@ -382,10 +430,12 @@ private:
     const CreateCallback m_on_create;
     std::vector<Row> m_rows;
     std::unique_ptr<List> m_list;
-    const Vec4 m_icon_box{80.f, 135.f, 300.f, 300.f};
+    const Vec4 m_title_box{75.f, 120.f, 310.f, 70.f};
+    const Vec4 m_icon_box{80.f, 205.f, 300.f, 300.f};
     int m_preview{};
     s64 m_index{};
     bool m_icon_focused{true};
+    bool m_title_focused{};
     ScrollingText m_scroll_screen_title{};
     ScrollingText m_scroll_app_title{};
     ScrollingText m_scroll_row_label{};

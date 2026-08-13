@@ -1119,5 +1119,11 @@
   "Section #": "섹션 #",
   "by ": "제작자: ",
   "Default install folder: ": "기본 설치 폴더: ",
-  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%"
+  "Wi-Fi %.0f%%": "Wi-Fi %.0f%%",
+  "CPU Cores": "CPU 코어",
+  "3 (Default)": "3 (기본값)",
+  "4 (Advanced)": "4 (고급)",
+  "4 CPU Cores\n\nCore 3 is shared with system services. Only enable this for homebrew that manages thread affinity correctly; unrestricted use can cause system lag or instability.": "CPU 코어 4개\n\n코어 3은 시스템 서비스와 공유됩니다. 스레드 선호도를 올바르게 관리하는 홈브류에서만 활성화하세요. 제한 없이 사용하면 시스템 지연이나 불안정이 발생할 수 있습니다.",
+  "Failed to launch homebrew": "홈브류를 실행하지 못했습니다",
+  "Three cores reserves core 3 for system services. Four cores should only be used by homebrew that manages thread affinity correctly.": "3코어 모드는 코어 3을 시스템 서비스용으로 예약합니다. 4코어는 스레드 선호도를 올바르게 관리하는 홈브류에서만 사용하세요."
 }
