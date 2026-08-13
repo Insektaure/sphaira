@@ -104,4 +104,6 @@ The output will be found in `build/MinSizeRel/sphaira.nro`
 - [oss-nvjpg](https://github.com/averne/oss-nvjpg)
 - [nsz](https://github.com/nicoboss/nsz)
 - [themezer](https://themezer.net/)
+- [nx-versions](https://github.com/16BitWonder/nx-versions)
+- [NX-Update-Checker](https://github.com/16BitWonder/NX-Update-Checker)
 - Everyone who has contributed to this project!

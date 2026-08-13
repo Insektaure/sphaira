@@ -679,6 +679,9 @@ enum class SphairaResult : Result {
     NszTooManyBlocks,
     // set when nca finished but not all blocks were handled.
     NszMissingBlocks,
+
+    NxVersionsFailedToDownload,
+    NxVersionsInvalidDatabase,
 };
 
 #define MAKE_SPHAIRA_RESULT_ENUM(x) Result_##x =  MAKERESULT(Module_Sphaira, (Result)SphairaResult::x)
@@ -829,6 +832,9 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(NszFailedCompressStream2),
     MAKE_SPHAIRA_RESULT_ENUM(NszTooManyBlocks),
     MAKE_SPHAIRA_RESULT_ENUM(NszMissingBlocks),
+
+    MAKE_SPHAIRA_RESULT_ENUM(NxVersionsFailedToDownload),
+    MAKE_SPHAIRA_RESULT_ENUM(NxVersionsInvalidDatabase),
 };
 
 #undef MAKE_SPHAIRA_RESULT_ENUM

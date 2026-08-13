@@ -115,6 +115,8 @@ auto GetCodeMessage(Result rc) -> const char* {
         case Result_MainFailedToDownloadUpdate: return "SphairaError_MainFailedToDownloadUpdate";
         case Result_MainDownloadedUpdateInvalid: return "SphairaError_MainDownloadedUpdateInvalid";
         case Result_MainFailedToInstallUpdate: return "SphairaError_MainFailedToInstallUpdate";
+        case Result_NxVersionsFailedToDownload: return "SphairaError_NxVersionsFailedToDownload";
+        case Result_NxVersionsInvalidDatabase: return "SphairaError_NxVersionsInvalidDatabase";
         case Result_UsbDsBadDeviceSpeed: return "SphairaError_UsbDsBadDeviceSpeed";
         case Result_NcaBadMagic: return "SphairaError_NcaBadMagic";
         case Result_NspBadMagic: return "SphairaError_NspBadMagic";
