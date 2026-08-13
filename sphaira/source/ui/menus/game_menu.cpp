@@ -348,6 +348,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     sort_items.push_back("Title ID"_i18n);
                     sort_items.push_back("Last played"_i18n);
                     sort_items.push_back("Total playtime"_i18n);
+                    sort_items.push_back("Publisher"_i18n);
 
                     SidebarEntryArray::Items order_items;
                     order_items.push_back("Descending"_i18n);
@@ -828,6 +829,26 @@ void Menu::Sort() {
         case SortType_TotalPlayTime:
             std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
                 return lhs.playtime > rhs.playtime;
+            });
+            break;
+
+        case SortType_Publisher:
+            for (auto& entry : m_entries) {
+                LoadControlEntry(entry);
+                SyncEntryToMaster(entry);
+            }
+            std::ranges::sort(m_entries, [](const auto& lhs, const auto& rhs) {
+                const auto publisher_order = strcasecmp(lhs.GetAuthor(), rhs.GetAuthor());
+                if (publisher_order) {
+                    return publisher_order > 0;
+                }
+
+                const auto title_order = strcasecmp(lhs.GetName(), rhs.GetName());
+                if (title_order) {
+                    return title_order > 0;
+                }
+
+                return lhs.app_id > rhs.app_id;
             });
             break;
 

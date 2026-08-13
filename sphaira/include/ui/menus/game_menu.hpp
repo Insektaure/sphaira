@@ -37,11 +37,12 @@ struct Entry {
 };
 
 enum SortType {
-    SortType_Updated,
-    SortType_Title,
-    SortType_TitleID,
-    SortType_LastPlayed,
-    SortType_TotalPlayTime,
+    SortType_Updated = 0,
+    SortType_Title = 1,
+    SortType_TitleID = 2,
+    SortType_LastPlayed = 3,
+    SortType_TotalPlayTime = 4,
+    SortType_Publisher = 5,
 };
 
 enum OrderType {
