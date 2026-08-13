@@ -346,6 +346,7 @@ if (ENABLE_FTPSRV)
         GIT_REPOSITORY https://github.com/ITotalJustice/ftpsrv.git
         GIT_TAG 7c82402
         SOURCE_SUBDIR NONE
+        PATCH_COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${CMAKE_SOURCE_DIR}/cmake/patches/ftpsrv-upload-callback.patch"
     )
 
     FetchContent_MakeAvailable(ftpsrv)
