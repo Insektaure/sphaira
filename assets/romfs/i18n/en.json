@@ -96,7 +96,7 @@
   "Enter URL": "Enter URL",
   "web_browser_info": [
     "Launch the built-in web browser.\n",
-    "NOTE: The browser is very limted, some websites will fail to load and there's a 30 minute timeout which closes the browser"
+    "NOTE: The browser is very limited, some websites will fail to load and there's a 30 minute timeout which closes the browser"
   ],
   "Advanced Options": "Advanced Options",
   "Slow": "Slow",
@@ -259,7 +259,7 @@
   "block_compress_info": [
     "Enables block compression, which compresses the NCA into blocks (at the cost of compression ratio) ",
     "which allows for random access, allowing the NCZ to be mounted as a file system.\n",
-    "NOTE: Sphaira does not yet support mounting NCZ as a file system, but it will be added evntually."
+    "NOTE: Sphaira does not yet support mounting NCZ as a file system, but it will be added eventually."
   ],
   "NSZ block size": "NSZ block size",
   "Sets the size of each block. The smaller the size, the faster the random access is at the cost of compression ratio.": [
