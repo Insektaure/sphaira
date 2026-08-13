@@ -1004,9 +1004,10 @@ auto App::Install(OwoConfig& config) -> Result {
 
 auto App::Install(ui::ProgressBox* pbox, OwoConfig& config) -> Result {
     config.nro_path = nro_add_arg_file(config.nro_path);
-    if (!config.icon.empty()) {
-        config.icon = GetNroIcon(config.icon);
+    if (config.icon.empty()) {
+        config.icon.assign(std::begin(DEFAULT_IMAGE_DATA), std::end(DEFAULT_IMAGE_DATA));
     }
+    config.icon = GetNroIcon(config.icon);
 
     if (config.logo.empty()) {
         g_app->m_fs->read_entire_file("/config/sphaira/logo/NintendoLogo.png", config.logo);

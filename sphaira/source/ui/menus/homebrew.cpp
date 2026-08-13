@@ -121,6 +121,7 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
         // lazy load image
         if (image_load_count < image_load_max) {
             if (!e.image && e.icon_size && e.icon_offset) {
+                image_load_count++;
                 // NOTE: it seems that images can be any size. SuperTux uses a 1024x1024
                 // ~300Kb image, which takes a few frames to completely load.
                 // really, switch-tools should handle this by resizing the image before
@@ -131,12 +132,14 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
                     const auto image = ImageLoadFromMemory(icon, ImageFlag_JPEG);
                     if (!image.data.empty()) {
                         e.image = nvgCreateImageRGBA(vg, image.w, image.h, 0, image.data.data());
-                        log_write("\t[image load] time taken: %.2fs %zums\n", ts.GetSecondsD(), ts.GetMs());
-                        image_load_count++;
-                    } else {
-                        // prevent loading of this icon again as it's already failed.
-                        e.icon_offset = e.icon_size = 0;
+                        if (e.image > 0) {
+                            log_write("\t[image load] time taken: %.2fs %zums\n", ts.GetSecondsD(), ts.GetMs());
+                        }
                     }
+                }
+
+                if (e.image <= 0) {
+                    e.icon_offset = e.icon_size = 0;
                 }
             }
         }
@@ -158,7 +161,9 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
         }
 
         const auto selected = pos == m_index;
-        DrawEntry(vg, theme, m_layout.Get(), v, selected, e.image, name.c_str(), e.GetAuthor(), e.GetDisplayVersion());
+        const auto image = e.image > 0 || (e.icon_size && e.icon_offset)
+            ? e.image : App::GetDefaultImage();
+        DrawEntry(vg, theme, m_layout.Get(), v, selected, image, name.c_str(), e.GetAuthor(), e.GetDisplayVersion());
     });
 }
 

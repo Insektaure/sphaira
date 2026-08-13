@@ -73,9 +73,15 @@ public:
         m_list->SetPageJump(false);
         m_list->SetScrollBarPos(1225.f, 115.f, 505.f);
 
-        auto normalized = steamgriddb::NormalizeIcon(m_values.icon);
+        const bool use_default_icon = m_values.icon.empty();
+        auto normalized = steamgriddb::NormalizeIcon(
+            use_default_icon ? App::GetDefaultImageData() : std::span<const u8>{m_values.icon}
+        );
         if (!normalized.empty()) {
             m_values.icon = std::move(normalized);
+            if (use_default_icon) {
+                m_icon_source = "Default"_i18n;
+            }
         }
         UpdatePreview();
     }
