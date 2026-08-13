@@ -512,6 +512,8 @@
   "Updating play statistics": "Actualizando estadísticas de juego",
   "Failed to update play statistics!": "¡No se pudieron actualizar las estadísticas de juego!",
   "Play statistics unavailable": "Estadísticas de reproducción no disponibles",
+  "Play statistics": "Estadísticas de juego",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "Muestra el tiempo de juego y habilita los ordenamientos por estadísticas de juego. Desactívalo para actualizar la lista más rápido y reducir las escrituras en la tarjeta SD en bibliotecas grandes.",
   "No statistics": "Sin estadísticas",
   "Empty!": "¡Vacío!",
   "Filter: %s | Sort: %s | Order: %s": "Filtro: %s | Ordenar: %s | Orden: %s",

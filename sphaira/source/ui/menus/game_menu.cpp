@@ -539,13 +539,28 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     auto options = std::make_unique<Sidebar>("Sort Options"_i18n, Sidebar::Side::RIGHT);
                     ON_SCOPE_EXIT(App::Push(std::move(options)));
 
+                    // the play statistic sorts are hidden when play statistics
+                    // are disabled, as there is no data to sort by.
                     SidebarEntryArray::Items sort_items;
-                    sort_items.push_back("Updated"_i18n);
-                    sort_items.push_back("Title"_i18n);
-                    sort_items.push_back("Title ID"_i18n);
-                    sort_items.push_back("Last played"_i18n);
-                    sort_items.push_back("Total playtime"_i18n);
-                    sort_items.push_back("Publisher"_i18n);
+                    std::vector<s64> sort_map;
+                    const auto add_sort = [&](const std::string& name, SortType type) {
+                        sort_items.push_back(name);
+                        sort_map.push_back(type);
+                    };
+
+                    add_sort("Updated"_i18n, SortType_Updated);
+                    add_sort("Title"_i18n, SortType_Title);
+                    add_sort("Title ID"_i18n, SortType_TitleID);
+                    if (IsPlayStatsEnabled()) {
+                        add_sort("Last played"_i18n, SortType_LastPlayed);
+                        add_sort("Total playtime"_i18n, SortType_TotalPlayTime);
+                    }
+                    add_sort("Publisher"_i18n, SortType_Publisher);
+
+                    auto sort_index = std::distance(sort_map.begin(), std::ranges::find(sort_map, m_sort.Get()));
+                    if (sort_index >= (s64)sort_map.size()) {
+                        sort_index = 0;
+                    }
 
                     SidebarEntryArray::Items order_items;
                     order_items.push_back("Descending"_i18n);
@@ -556,14 +571,15 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     layout_items.push_back("Icon"_i18n);
                     layout_items.push_back("Grid"_i18n);
 
-                    options->Add<SidebarEntryArray>("Sort"_i18n, sort_items, [this](s64& index_out){
-                        if (index_out == SortType_TotalPlayTime) {
+                    options->Add<SidebarEntryArray>("Sort"_i18n, sort_items, [this, sort_map](s64& index_out){
+                        const auto sort = sort_map[index_out];
+                        if (sort == SortType_TotalPlayTime) {
                             LoadPlaytime();
                         } else {
-                            m_sort.Set(index_out);
+                            m_sort.Set(sort);
                             SortAndFindLastFile(false);
                         }
-                    }, m_sort.Get());
+                    }, sort_index);
 
                     options->Add<SidebarEntryArray>("Order"_i18n, order_items, [this](s64& index_out){
                         m_order.Set(index_out);
@@ -638,6 +654,10 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     App::PopToMenu();
                 });
 
+                options->Add<SidebarEntryBool>("Play statistics"_i18n, m_play_stats.Get(), [this](bool& v_out){
+                    SetPlayStatsEnabled(v_out);
+                }, "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries."_i18n);
+
                 options->Add<SidebarEntryCallback>("Create contents folder"_i18n, [this](){
                     const auto rc = fs::FsNativeSd().CreateDirectory(title::GetContentsPath(m_entries[m_index].app_id));
                     App::PushErrorBox(rc, "Folder create failed!"_i18n);
@@ -684,9 +704,11 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
     ns::Initialize();
     es::Initialize();
     title::Init();
-    m_pdm_initialized = R_SUCCEEDED(pdmqryInitialize());
-    if (!m_pdm_initialized) {
-        log_write("[PDM] failed to initialize pdm:qry; play statistics will be unavailable\n");
+    if (m_play_stats.Get()) {
+        m_pdm_initialized = R_SUCCEEDED(pdmqryInitialize());
+        if (!m_pdm_initialized) {
+            log_write("[PDM] failed to initialize pdm:qry; play statistics will be unavailable\n");
+        }
     }
 
     fsOpenGameCardDetectionEventNotifier(std::addressof(m_gc_event_notifier));
@@ -804,6 +826,14 @@ void Menu::SetIndex(s64 index) {
     char title_id[33];
     std::snprintf(title_id, sizeof(title_id), "%016lX", entry.app_id);
 
+    // play statistics are disabled, the entries carry no playtime and no
+    // worker is running, so there is nothing to display or request.
+    if (!m_play_stats.Get()) {
+        SetTitleSubHeading(title_id);
+        this->SetSubHeading(std::to_string(m_index + 1) + " / " + std::to_string(m_entries.size()));
+        return;
+    }
+
     std::string title_info = title_id;
     if (!entry.user_playtimes.empty()) {
         bool showed_profile{};
@@ -844,6 +874,7 @@ void Menu::ScanHomebrew() {
 
     constexpr auto ENTRY_CHUNK_COUNT = 1000;
     const auto hide_forwarders = m_hide_forwarders.Get();
+    const auto play_stats = m_play_stats.Get();
     TimeStamp ts;
 
     App::SetBoostMode(true);
@@ -853,7 +884,7 @@ void Menu::ScanHomebrew() {
     m_entries.reserve(ENTRY_CHUNK_COUNT);
     g_change_signalled = false;
 
-    if (m_accounts.empty()) {
+    if (play_stats && m_accounts.empty()) {
         m_accounts = App::GetAccountList();
     }
 
@@ -884,6 +915,12 @@ void Menu::ScanHomebrew() {
             auto& entry = m_entries.emplace_back(e.application_id, e.last_event);
             batch_ids.push_back(entry.app_id);
 
+            // the cached playtime lookup is a full scan of playlog.ini per
+            // entry (and per user), skip it entirely when disabled.
+            if (!play_stats) {
+                continue;
+            }
+
             char section[33];
             std::snprintf(section, sizeof(section), "%016lX", entry.app_id);
             entry.playtime_cached_last_played = static_cast<u64>(ini_getl(section, "last_played", 0, App::PLAYLOG_PATH));
@@ -909,7 +946,7 @@ void Menu::ScanHomebrew() {
             }
         }
 
-        if (m_pdm_initialized && !batch_ids.empty()) {
+        if (play_stats && m_pdm_initialized && !batch_ids.empty()) {
             std::vector<PdmLastPlayTime> play_times(batch_ids.size());
             s32 play_time_count{};
             if (R_SUCCEEDED(pdmqryQueryLastPlayTime(true, play_times.data(), batch_ids.data(), batch_ids.size(), &play_time_count))) {
@@ -969,8 +1006,14 @@ void Menu::Filter() {
 }
 
 void Menu::Sort() {
-    const auto sort = m_sort.Get();
+    auto sort = m_sort.Get();
     const auto order = m_order.Get();
+
+    // guards against a stale sort being loaded from the config.
+    if (!m_play_stats.Get() && (sort == SortType_LastPlayed || sort == SortType_TotalPlayTime)) {
+        sort = SortType_Updated;
+        m_sort.Set(sort);
+    }
 
     switch (sort) {
         case SortType_Updated:
@@ -1051,7 +1094,7 @@ void Menu::SyncEntryToMaster(const Entry& entry) {
 }
 
 void Menu::StartPlaytimeWorker() {
-    if (!m_pdm_initialized || m_playtime_worker) {
+    if (!m_play_stats.Get() || !m_pdm_initialized || m_playtime_worker) {
         return;
     }
 
@@ -1111,8 +1154,44 @@ void Menu::ApplyPlaytimeResults() {
     }
 }
 
+void Menu::SetPlayStatsEnabled(bool enable) {
+    if (enable == m_play_stats.Get() && enable == m_pdm_initialized) {
+        return;
+    }
+
+    m_play_stats.Set(enable);
+
+    if (enable) {
+        if (!m_pdm_initialized) {
+            m_pdm_initialized = R_SUCCEEDED(pdmqryInitialize());
+            if (!m_pdm_initialized) {
+                log_write("[PDM] failed to initialize pdm:qry; play statistics will be unavailable\n");
+                App::Notify("Play statistics unavailable"_i18n);
+            }
+        }
+    } else {
+        // the worker must go before pdm:qry is closed, as it queries from
+        // its own thread.
+        StopPlaytimeWorker(false);
+
+        if (m_pdm_initialized) {
+            pdmqryExit();
+            m_pdm_initialized = false;
+        }
+
+        // fall back to a sort that does not need play statistics.
+        const auto sort = m_sort.Get();
+        if (sort == SortType_LastPlayed || sort == SortType_TotalPlayTime) {
+            m_sort.Set(SortType_Updated);
+        }
+    }
+
+    // rebuild the list so the stale playtime data is dropped / repopulated.
+    m_dirty = true;
+}
+
 void Menu::LoadPlaytime() {
-    if (!m_pdm_initialized) {
+    if (!m_play_stats.Get() || !m_pdm_initialized) {
         App::Notify("Play statistics unavailable"_i18n);
         return;
     }

@@ -511,6 +511,8 @@
   "Updating play statistics": "Speelstatistieken bijwerken",
   "Failed to update play statistics!": "Kan de spelstatistieken niet bijwerken!",
   "Play statistics unavailable": "Speelstatistieken niet beschikbaar",
+  "Play statistics": "Speelstatistieken",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "Toont de speeltijd en schakelt het sorteren op speelstatistieken in. Schakel uit voor snellere lijstvernieuwingen en minder schrijfacties naar de SD-kaart bij grote bibliotheken.",
   "No statistics": "Geen statistieken",
   "Empty!": "Leeg!",
   "Filter: %s | Sort: %s | Order: %s": "Filter: %s | Soort: %s | Volgorde: %s",

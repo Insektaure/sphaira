@@ -495,6 +495,8 @@
   "Updating play statistics": "更新播放统计数据",
   "Failed to update play statistics!": "无法更新播放统计数据！",
   "Play statistics unavailable": "播放统计数据不可用",
+  "Play statistics": "播放统计数据",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "显示游戏时长并启用按播放统计数据排序。在大型库中禁用可加快列表刷新速度并减少 SD 卡写入。",
   "No statistics": "无统计数据",
   "Empty!": "空空如也！",
   "Filter: %s | Sort: %s | Order: %s": "筛选: %s | 排序: %s | 顺序: %s",

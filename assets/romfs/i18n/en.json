@@ -511,6 +511,8 @@
   "Updating play statistics": "Updating play statistics",
   "Failed to update play statistics!": "Failed to update play statistics!",
   "Play statistics unavailable": "Play statistics unavailable",
+  "Play statistics": "Play statistics",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.",
   "No statistics": "No statistics",
   "Empty!": "Empty!",
   "Filter: %s | Sort: %s | Order: %s": "Filter: %s | Sort: %s | Order: %s",
