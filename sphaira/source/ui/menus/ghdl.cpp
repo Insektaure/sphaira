@@ -42,6 +42,7 @@ namespace {
 
 constexpr auto CACHE_PATH = "/switch/sphaira/cache/github";
 constexpr fs::FsPath DIRECT_LINKS_PATH{"/config/sphaira/github/direct_links.json"};
+constexpr fs::FsPath REPOSITORIES_PATH{"/config/sphaira/github/repositories.json"};
 constexpr fs::FsPath DIRECT_LINKS_DIRECTORY{"/config/sphaira/github"};
 constexpr fs::FsPath SWITCHPORTS_CACHE_PATH{"/switch/sphaira/cache/github/switchports.md"};
 constexpr auto SWITCHPORTS_README_URL = "https://raw.githubusercontent.com/robzilla10001/SwitchPorts/main/README.md";
@@ -138,6 +139,13 @@ auto IsSafeInstallPath(std::string_view path) -> bool {
         offset = slash + 1;
     }
     return true;
+}
+
+auto IsSafeAssetFileName(std::string_view name) -> bool {
+    return !name.empty() && name != "." && name != ".."
+        && name.size() + std::strlen("/switch/") < PATH_MAX
+        && name.find_first_of("/\\:") == std::string_view::npos
+        && !std::ranges::any_of(name, [](unsigned char c){ return c < 0x20 || c == 0x7F; });
 }
 
 auto IsSafeArchivePath(std::string_view path) -> bool {
@@ -283,6 +291,12 @@ auto ParseGithubUrl(std::string_view url, std::string& owner, std::string& repo)
         return false;
     }
     return true;
+}
+
+auto IsSameRepository(const Entry& entry, std::string_view owner, std::string_view repo) -> bool {
+    return entry.direct_url.empty() && entry.owner.size() == owner.size() && entry.repo.size() == repo.size()
+        && !strncasecmp(entry.owner.data(), owner.data(), owner.size())
+        && !strncasecmp(entry.repo.data(), repo.data(), repo.size());
 }
 
 auto SanitizeFolder(std::string_view value) -> std::string {
@@ -483,6 +497,102 @@ auto WriteDirectLinksFile(const std::vector<Entry>& entries) -> Result {
     return fs.write_entire_file(DIRECT_LINKS_PATH, std::span<const u8>{reinterpret_cast<const u8*>(json), json_size});
 }
 
+void LoadRepositoriesFile(std::vector<Entry>& entries) {
+    fs::FsNativeSd fs;
+    if (R_FAILED(fs.GetFsOpenResult()) || !fs.FileExists(REPOSITORIES_PATH)) {
+        return;
+    }
+
+    std::vector<u8> data;
+    if (R_FAILED(fs.read_entire_file(REPOSITORIES_PATH, data)) || data.empty()) {
+        return;
+    }
+
+    auto doc = yyjson_read(reinterpret_cast<const char*>(data.data()), data.size(), YYJSON_READ_ALLOW_TRAILING_COMMAS);
+    if (!doc) {
+        return;
+    }
+    ON_SCOPE_EXIT(yyjson_doc_free(doc));
+
+    auto root = yyjson_doc_get_root(doc);
+    if (yyjson_is_obj(root)) {
+        root = yyjson_obj_get(root, "repositories");
+    }
+    if (!yyjson_is_arr(root)) {
+        return;
+    }
+
+    size_t index, count;
+    yyjson_val* value;
+    yyjson_arr_foreach(root, index, count, value) {
+        if (!yyjson_is_obj(value)) {
+            continue;
+        }
+
+        const auto url_value = yyjson_obj_get(value, "url");
+        if (!yyjson_is_str(url_value)) {
+            continue;
+        }
+
+        Entry entry{};
+        entry.url = Trim(yyjson_get_str(url_value));
+        if (!ParseGithubUrl(entry.url, entry.owner, entry.repo)
+            || std::ranges::any_of(entries, [&](const auto& existing){ return IsSameRepository(existing, entry.owner, entry.repo); })) {
+            continue;
+        }
+
+        entry.url = "https://github.com/" + entry.owner + "/" + entry.repo;
+        if (const auto name = yyjson_obj_get(value, "name"); yyjson_is_str(name)) {
+            entry.name = Trim(yyjson_get_str(name));
+        }
+        if (const auto tag = yyjson_obj_get(value, "tag"); yyjson_is_str(tag)) {
+            entry.tag = Trim(yyjson_get_str(tag));
+        }
+        entry.json_path = REPOSITORIES_PATH;
+        entry.saved_repository = true;
+        entries.emplace_back(std::move(entry));
+    }
+}
+
+auto WriteRepositoriesFile(const std::vector<Entry>& entries) -> Result {
+    auto doc = yyjson_mut_doc_new(nullptr);
+    R_UNLESS(doc, Result_FsStdioFailedToWrite);
+    ON_SCOPE_EXIT(yyjson_mut_doc_free(doc));
+
+    auto root = yyjson_mut_arr(doc);
+    R_UNLESS(root, Result_FsStdioFailedToWrite);
+    yyjson_mut_doc_set_root(doc, root);
+
+    for (const auto& entry : entries) {
+        if (!entry.saved_repository || entry.owner.empty() || entry.repo.empty()) {
+            continue;
+        }
+
+        auto object = yyjson_mut_arr_add_obj(doc, root);
+        R_UNLESS(object, Result_FsStdioFailedToWrite);
+        const auto url = "https://github.com/" + entry.owner + "/" + entry.repo;
+        R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "url", url.c_str()), Result_FsStdioFailedToWrite);
+        if (!entry.name.empty()) {
+            R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "name", entry.name.c_str()), Result_FsStdioFailedToWrite);
+        }
+        if (!entry.tag.empty()) {
+            R_UNLESS(yyjson_mut_obj_add_strcpy(doc, object, "tag", entry.tag.c_str()), Result_FsStdioFailedToWrite);
+        }
+    }
+
+    size_t json_size{};
+    auto json = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY, &json_size);
+    R_UNLESS(json, Result_FsStdioFailedToWrite);
+    ON_SCOPE_EXIT(std::free(json));
+
+    fs::FsNativeSd fs;
+    R_TRY(fs.GetFsOpenResult());
+    if (const auto rc = fs.CreateDirectoryRecursively(DIRECT_LINKS_DIRECTORY); R_FAILED(rc) && rc != FsError_PathAlreadyExists) {
+        return rc;
+    }
+    return fs.write_entire_file(REPOSITORIES_PATH, std::span<const u8>{reinterpret_cast<const u8*>(json), json_size});
+}
+
 auto ParseSwitchPortsCatalog(std::string_view markdown, std::vector<SwitchPortCategory>& catalog) -> bool {
     catalog.clear();
     SwitchPortCategory* current{};
@@ -677,21 +787,27 @@ auto DownloadApp(ProgressBox* pbox, const GhApiAsset& gh_asset, const AssetEntry
 
         R_UNLESS(result.success, Result_GhdlFailedToDownloadAsset);
     }
+    R_TRY(pbox->ShouldExitResult());
 
+    const auto is_archive = EndsWithCaseInsensitive(gh_asset.name, ".zip")
+        || gh_asset.content_type.find("zip") != gh_asset.content_type.npos;
     fs::FsPath root_path{"/"};
     if (entry && !entry->path.empty()) {
         root_path = entry->path;
+    } else if (!is_archive) {
+        R_UNLESS(IsSafeAssetFileName(gh_asset.name), Result_GhdlUnsafeArchivePath);
+        root_path = fs::AppendPath("/switch", gh_asset.name);
     }
 
     // 3. extract the zip / file
-    if (EndsWithCaseInsensitive(gh_asset.name, ".zip") || gh_asset.content_type.find("zip") != gh_asset.content_type.npos) {
+    if (is_archive) {
         log_write("found zip\n");
         if (validate_archive) {
             R_TRY(ValidateDirectArchive(temp_file, root_path, fs));
         }
         R_TRY(thread::TransferUnzipAll(pbox, temp_file, &fs, root_path));
     } else {
-        fs.CreateDirectoryRecursivelyWithPath(root_path);
+        R_TRY(fs.CreateDirectoryRecursivelyWithPath(root_path));
         fs.DeleteFile(root_path);
         R_TRY(fs.RenameFile(temp_file, root_path));
     }
@@ -1167,8 +1283,8 @@ Menu::Menu(u32 flags) : MenuBase{"GitHub"_i18n, flags} {
             SetPop();
         }}),
 
-        std::make_pair(Button::Y, Action{"Direct Link"_i18n, [this](){
-            PromptDirectLink();
+        std::make_pair(Button::Y, Action{"Add"_i18n, [this](){
+            PromptAdd();
         }})
     );
 
@@ -1252,10 +1368,14 @@ void Menu::SetIndex(s64 index) {
     }
 
     const auto& entry = m_entries[m_index];
-    SetTitleSubHeading(entry.direct_url.empty() ? entry.json_path.toString() : entry.direct_url);
-    if (entry.saved_direct_link) {
+    SetTitleSubHeading(!entry.direct_url.empty() ? entry.direct_url : entry.saved_repository ? entry.url : entry.json_path.toString());
+    if (entry.saved_direct_link || entry.saved_repository) {
         SetAction(Button::X, Action{"Remove"_i18n, [this](){
-            RemoveSelectedDirectLink();
+            if (GetEntry().saved_direct_link) {
+                RemoveSelectedDirectLink();
+            } else {
+                RemoveSelectedRepository();
+            }
         }});
     } else {
         RemoveAction(Button::X);
@@ -1275,6 +1395,7 @@ void Menu::Scan() {
     // then load custom entries
     LoadEntriesFromPath("/config/sphaira/github/");
     LoadDirectLinks();
+    LoadRepositories();
     Sort();
     SetIndex(0);
 }
@@ -1338,6 +1459,27 @@ void Menu::LoadDirectLinks() {
     LoadDirectLinksFile(m_entries);
 }
 
+void Menu::LoadRepositories() {
+    LoadRepositoriesFile(m_entries);
+}
+
+void Menu::PromptAdd() {
+    PopupList::Items items{
+        "GitHub Repository"_i18n,
+        "Direct Link"_i18n,
+    };
+    App::Push<PopupList>("Add"_i18n, items, [this](auto index){
+        if (!index) {
+            return;
+        }
+        if (*index == 0) {
+            PromptRepository();
+        } else if (*index == 1) {
+            PromptDirectLink();
+        }
+    });
+}
+
 void Menu::PromptDirectLink() {
     std::string url;
     if (R_FAILED(swkbd::ShowText(
@@ -1383,6 +1525,30 @@ void Menu::PromptDirectLink() {
     });
 }
 
+void Menu::PromptRepository() {
+    std::string url;
+    if (R_FAILED(swkbd::ShowText(
+        url,
+        "GitHub Repository"_i18n.c_str(),
+        "Enter a GitHub repository URL"_i18n.c_str(),
+        "https://github.com/",
+        19,
+        PATH_MAX - 1
+    ))) {
+        return;
+    }
+
+    url = Trim(url);
+    Entry entry{};
+    if (!ParseGithubUrl(url, entry.owner, entry.repo)) {
+        App::Notify("Enter a valid GitHub repository URL"_i18n);
+        return;
+    }
+
+    entry.url = "https://github.com/" + entry.owner + "/" + entry.repo;
+    SaveRepository(entry);
+}
+
 void Menu::SaveDirectLink(const Entry& direct_entry) {
     if (std::ranges::any_of(m_entries, [&](const auto& entry){ return entry.direct_url == direct_entry.direct_url; })) {
         App::Notify("Direct link is already saved"_i18n);
@@ -1404,6 +1570,31 @@ void Menu::SaveDirectLink(const Entry& direct_entry) {
     const auto found = std::ranges::find(m_entries, direct_entry.direct_url, &Entry::direct_url);
     SetIndex(found == m_entries.end() ? 0 : std::distance(m_entries.begin(), found));
     App::Notify("Direct link saved"_i18n);
+}
+
+void Menu::SaveRepository(const Entry& repository) {
+    if (std::ranges::any_of(m_entries, [&](const auto& entry){ return IsSameRepository(entry, repository.owner, repository.repo); })) {
+        App::Notify("GitHub repository is already saved"_i18n);
+        return;
+    }
+
+    auto entry = repository;
+    entry.json_path = REPOSITORIES_PATH;
+    entry.saved_repository = true;
+    m_entries.emplace_back(std::move(entry));
+
+    if (const auto rc = WriteRepositoriesFile(m_entries); R_FAILED(rc)) {
+        m_entries.pop_back();
+        App::PushErrorBox(rc, "Failed to save GitHub repository"_i18n);
+        return;
+    }
+
+    Sort();
+    const auto found = std::ranges::find_if(m_entries, [&](const auto& saved){
+        return saved.saved_repository && IsSameRepository(saved, repository.owner, repository.repo);
+    });
+    SetIndex(found == m_entries.end() ? 0 : std::distance(m_entries.begin(), found));
+    App::Notify("GitHub repository saved"_i18n);
 }
 
 void Menu::RemoveSelectedDirectLink() {
@@ -1435,6 +1626,42 @@ void Menu::RemoveSelectedDirectLink() {
 
             SetIndex(m_entries.empty() ? 0 : std::min<s64>(m_index, m_entries.size() - 1));
             App::Notify(i18n::Reorder("Removed ", name));
+        }
+    );
+}
+
+void Menu::RemoveSelectedRepository() {
+    if (m_entries.empty() || !GetEntry().saved_repository) {
+        return;
+    }
+
+    const auto owner = GetEntry().owner;
+    const auto repo = GetEntry().repo;
+    App::Push<OptionBox>(
+        "Remove saved GitHub repository?"_i18n,
+        "Back"_i18n,
+        "Remove"_i18n,
+        0,
+        [this, owner, repo](auto index) {
+            if (!index || *index != 1 || m_entries.empty() || !GetEntry().saved_repository) {
+                return;
+            }
+
+            const auto removed = m_entries[m_index];
+            m_entries.erase(m_entries.begin() + m_index);
+            if (const auto rc = WriteRepositoriesFile(m_entries); R_FAILED(rc)) {
+                m_entries.emplace_back(removed);
+                Sort();
+                const auto restored = std::ranges::find_if(m_entries, [&](const auto& entry){
+                    return entry.saved_repository && IsSameRepository(entry, owner, repo);
+                });
+                SetIndex(restored == m_entries.end() ? 0 : std::distance(m_entries.begin(), restored));
+                App::PushErrorBox(rc, "Failed to remove GitHub repository"_i18n);
+                return;
+            }
+
+            SetIndex(m_entries.empty() ? 0 : std::min<s64>(m_index, m_entries.size() - 1));
+            App::Notify(i18n::Reorder("Removed ", repo));
         }
     );
 }

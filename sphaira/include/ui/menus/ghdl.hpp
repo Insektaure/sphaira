@@ -30,6 +30,7 @@ struct Entry {
     std::string post_install_message{};
     std::vector<AssetEntry> assets{};
     bool saved_direct_link{};
+    bool saved_repository{};
 };
 
 struct GhApiAsset {
@@ -63,9 +64,14 @@ private:
     void Scan();
     void LoadEntriesFromPath(const fs::FsPath& path);
     void LoadDirectLinks();
+    void LoadRepositories();
+    void PromptAdd();
     void PromptDirectLink();
+    void PromptRepository();
     void SaveDirectLink(const Entry& entry);
+    void SaveRepository(const Entry& entry);
     void RemoveSelectedDirectLink();
+    void RemoveSelectedRepository();
 
     auto GetEntry() -> Entry& {
         return m_entries[m_index];
