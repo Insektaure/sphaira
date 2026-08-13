@@ -29,6 +29,7 @@
 #include "location.hpp"
 #include "threaded_file_transfer.hpp"
 #include "minizip_helper.hpp"
+#include "title_info.hpp"
 
 #include "yati/yati.hpp"
 #include "yati/source/file.hpp"
@@ -45,6 +46,7 @@
 #include <span>
 #include <utility>
 #include <ranges>
+#include <charconv>
 
 #ifdef ENABLE_LIBUSBDVD
 #include <usbdvd.h>
@@ -181,6 +183,26 @@ constexpr RomDatabaseEntry PATHS[]{
 };
 
 constexpr fs::FsPath DAYBREAK_PATH{"/switch/daybreak.nro"};
+constexpr std::string_view ATMOSPHERE_CONTENTS_PATH{"/atmosphere/contents"};
+
+auto IsAtmosphereContentsPath(std::string_view path) -> bool {
+    while (path.size() > 1 && path.back() == '/') {
+        path.remove_suffix(1);
+    }
+
+    return path.size() == ATMOSPHERE_CONTENTS_PATH.size() &&
+        !strncasecmp(path.data(), ATMOSPHERE_CONTENTS_PATH.data(), path.size());
+}
+
+auto ParseApplicationId(std::string_view name, u64& application_id) -> bool {
+    if (name.size() != 16) {
+        return false;
+    }
+
+    const auto end = name.data() + name.size();
+    const auto result = std::from_chars(name.data(), end, application_id, 16);
+    return result.ec == std::errc{} && result.ptr == end && application_id != 0;
+}
 
 // tries to find database path using folder name
 // names are taken from retropie
@@ -454,6 +476,10 @@ FsView::FsView(Base* menu, ViewSide side) : FsView{menu, menu->CreateFs(FS_ENTRY
 }
 
 FsView::~FsView() {
+    if (m_title_info_initialized) {
+        title::Exit();
+    }
+
     // don't store mount points for non-sd card paths.
     if (IsSd() && !m_entries_current.empty()) {
         ini_puts("paths", "last_path", m_path, App::CONFIG_PATH);
@@ -544,7 +570,18 @@ void FsView::Draw(NVGcontext* vg, Theme* theme) {
             gfx::drawText(vg, x + text_xoffset + 50 / 2, y + (h / 2.f) - (24.f / 2), 24.f, "\uE14B", nullptr, NVG_ALIGN_CENTER | NVG_ALIGN_TOP, theme->GetColour(ThemeEntryID_TEXT_SELECTED));
         }
 
-        m_scroll_name.Draw(vg, selected, x + text_xoffset+65, y + (h / 2.f), w-(75+text_xoffset+65+50), 20, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, theme->GetColour(text_id), e.name);
+        if (e.application_id && !e.title_lookup_complete) {
+            if (const auto data = title::GetAsync(e.application_id)) {
+                e.title_lookup_complete = true;
+                if (data->status == title::NacpLoadStatus::Loaded && data->lang.name[0]) {
+                    e.display_name = e.name;
+                    e.display_name += " - ";
+                    e.display_name += data->lang.name;
+                }
+            }
+        }
+
+        m_scroll_name.Draw(vg, selected, x + text_xoffset+65, y + (h / 2.f), w-(75+text_xoffset+65+50), 20, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, theme->GetColour(text_id), e.GetDisplayName());
 
         if (e.IsDir() && !m_fs_entry.IsNoStatDir() && (e.dir_count != -1 || !e.done_stat)) {
             // NOTE: this takes longer than 16ms when opening a new folder due to it
@@ -992,6 +1029,16 @@ auto FsView::Scan(fs::FsPath new_path, bool is_walk_up) -> Result {
     std::vector<FsDirectoryEntry> dir_entries;
     R_TRY(d.ReadAll(dir_entries));
 
+    const bool resolve_application_names = IsSd() && IsAtmosphereContentsPath(new_path);
+    if (resolve_application_names && !m_title_info_initialized) {
+        const auto rc = title::Init();
+        if (R_SUCCEEDED(rc)) {
+            m_title_info_initialized = true;
+        } else {
+            log_write("failed to initialize title info: 0x%08X\n", rc);
+        }
+    }
+
     const auto count = dir_entries.size();
     m_entries.reserve(count);
     m_entries_index.reserve(count);
@@ -1021,7 +1068,10 @@ auto FsView::Scan(fs::FsPath new_path, bool is_walk_up) -> Result {
         }
 
         m_entries_index_hidden.emplace_back(i);
-        m_entries.emplace_back(e);
+        auto& entry = m_entries.emplace_back(e);
+        if (resolve_application_names && m_title_info_initialized && entry.IsDir() && ParseApplicationId(entry.name, entry.application_id)) {
+            title::PushAsync(entry.application_id);
+        }
         i++;
     }
 
