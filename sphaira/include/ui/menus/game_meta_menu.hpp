@@ -107,6 +107,8 @@ private:
     s64 m_selected_count{};
     std::unique_ptr<List> m_list{};
     bool m_dirty{};
+    // set in the ctor, consumed on the first Update(), see Menu::Update().
+    bool m_prompt_stale_versions{};
 
     std::vector<FsRightsId> m_common_tickets{};
     std::vector<FsRightsId> m_personalised_tickets{};

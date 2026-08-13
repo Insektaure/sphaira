@@ -154,13 +154,23 @@ Menu::Menu(Entry& entry) : MenuBase{entry.GetName(), MenuFlag_None}, m_entry{ent
     std::snprintf(subtitle, sizeof(subtitle), "by %s", entry.GetAuthor());
     SetTitleSubHeading(subtitle);
 
+    // also loads the missing content list from the cached versions.txt.
     Scan();
 
-    // load missing content from cached versions.txt
-    LoadMissing();
+    // if the cache is older than 1 week, prompt the user to update.
+    // the prompt cannot be pushed from here, as this menu isn't on the widget
+    // stack until *after* the ctor returns
+    m_prompt_stale_versions = nx_versions::IsCacheStale();
+}
 
-    // if the cache is older than 1 week, prompt the user to update
-    if (nx_versions::IsCacheStale()) {
+Menu::~Menu() {
+}
+
+void Menu::Update(Controller* controller, TouchInfo* touch) {
+    // deferred from the ctor, so that we're on the widget stack before the
+    // prompt is pushed on top of us.
+    if (m_prompt_stale_versions) {
+        m_prompt_stale_versions = false;
         App::Push<OptionBox>(
             "Version list is outdated. Download update?"_i18n,
             "No"_i18n, "Download"_i18n, 0, [this](auto op_index){
@@ -169,13 +179,9 @@ Menu::Menu(Entry& entry) : MenuBase{entry.GetName(), MenuFlag_None}, m_entry{ent
                 }
             }
         );
+        return;
     }
-}
 
-Menu::~Menu() {
-}
-
-void Menu::Update(Controller* controller, TouchInfo* touch) {
     if (m_dirty) {
         m_dirty = false;
         Scan();
@@ -322,12 +328,20 @@ void Menu::Scan() {
         }
     }
 
+    // recalculate against the entries we just scanned, otherwise content that
+    // was just deleted would still be listed as installed.
+    LoadMissing();
+
     SetIndex(0);
 }
 
 void Menu::LoadMissing() {
     const auto versions = nx_versions::Load();
     if (versions.empty()) {
+        // no cache (or an unreadable one), so we know nothing about what's
+        // missing. clear rather than leaving a stale list behind.
+        m_missing_entries.clear();
+        UpdateSubheading();
         return;
     }
 
