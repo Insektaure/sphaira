@@ -250,14 +250,10 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
         if (image_load_count < image_load_max) {
             if (!e.image && e.icon_size && e.icon_offset) {
                 image_load_count++;
-                // NOTE: it seems that images can be any size. SuperTux uses a 1024x1024
-                // ~300Kb image, which takes a few frames to completely load.
-                // really, switch-tools should handle this by resizing the image before
-                // adding it to the nro, as well as validate its a valid jpeg.
                 const auto icon = nro_get_icon(e.path, e.icon_size, e.icon_offset);
                 TimeStamp ts;
                 if (!icon.empty()) {
-                    const auto image = ImageLoadFromMemory(icon, ImageFlag_JPEG);
+                    const auto image = ImageLoadIcon(icon);
                     if (!image.data.empty()) {
                         e.image = nvgCreateImageRGBA(vg, image.w, image.h, 0, image.data.data());
                         if (e.image > 0) {

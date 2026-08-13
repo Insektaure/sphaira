@@ -245,21 +245,7 @@ auto ConvertToForwarderIcon(std::span<const u8> compressed) -> std::vector<u8> {
         return {};
     }
 
-    const auto flags = compressed.size() >= 3 && compressed[0] == 0xFF && compressed[1] == 0xD8 && compressed[2] == 0xFF
-        ? ImageFlag_JPEG : ImageFlag_None;
-    auto decoded = ImageLoadFromMemory(compressed, flags);
-    if (decoded.data.empty() || decoded.w <= 0 || decoded.h <= 0) {
-        return {};
-    }
-
-    if (decoded.w != 256 || decoded.h != 256) {
-        decoded = ImageResize(decoded.data, decoded.w, decoded.h, 256, 256);
-        if (decoded.data.empty()) {
-            return {};
-        }
-    }
-
-    return ImageConvertToJpg(decoded.data, decoded.w, decoded.h).data;
+    return ImageNormalizeIcon(compressed);
 }
 
 auto DownloadIconBatch(ProgressBox* pbox, SearchState& state) -> Result {

@@ -351,19 +351,16 @@ auto GetFrameBufferSize() -> FrameBufferSize {
 // this doesn't take long at all, but it's very overkill.
 // todo: look into jpeg/exif spec to manually strip data
 auto GetNroIcon(const std::vector<u8>& nro_icon) -> std::vector<u8> {
-    auto image = ImageLoadFromMemory(nro_icon);
-    if (!image.data.empty()) {
-        if (image.w != 256 || image.h != 256) {
-            image = ImageResize(image.data, image.w, image.h, 256, 256);
-        }
-        if (!image.data.empty()) {
-            image = ImageConvertToJpg(image.data, image.w, image.h);
-            if (!image.data.empty()) {
-                return image.data;
-            }
-        }
+    auto icon = ImageNormalizeIcon(nro_icon);
+    if (!icon.empty()) {
+        return icon;
     }
-    return nro_icon;
+
+    icon = ImageNormalizeIcon(DEFAULT_IMAGE_DATA);
+    if (!icon.empty()) {
+        return icon;
+    }
+    return {std::begin(DEFAULT_IMAGE_DATA), std::end(DEFAULT_IMAGE_DATA)};
 }
 
 auto LoadThemeMeta(const fs::FsPath& path, ThemeMeta& meta) -> bool {
