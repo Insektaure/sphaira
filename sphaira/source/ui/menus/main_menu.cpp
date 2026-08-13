@@ -27,6 +27,7 @@
 #include "defines.hpp"
 #include "i18n.hpp"
 #include "threaded_file_transfer.hpp"
+#include "nacp_compat.hpp"
 
 #include <cstring>
 #include <yyjson.h>
@@ -74,7 +75,7 @@ auto EndsWithCaseInsensitive(std::string_view value, std::string_view suffix) ->
 }
 
 auto IsSphairaNacp(const NacpStruct& nacp) -> bool {
-    for (const auto& language : nacp.lang) {
+    for (const auto& language : NacpLanguageEntries(nacp)) {
         if (!strncasecmp(language.name, "sphaira", 7)) {
             return true;
         }

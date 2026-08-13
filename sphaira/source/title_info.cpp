@@ -3,6 +3,7 @@
 #include "ui/types.hpp"
 #include "log.hpp"
 #include "app.hpp"
+#include "nacp_compat.hpp"
 
 #include "yati/nx/ns.hpp"
 #include "yati/nx/nca.hpp"
@@ -620,7 +621,7 @@ auto GetEnglishTitleName(u64 app_id) -> std::string {
 
     NormalizeNacpLangData(nacp);
     for (const auto language : {SetLanguage_ENUS, SetLanguage_ENGB}) {
-        const auto& entry = nacp.lang[language];
+        const auto& entry = NacpLanguageEntries(nacp)[language];
         if (entry.name[0]) {
             return {std::begin(entry.name), std::find(std::begin(entry.name), std::end(entry.name), '\0')};
         }

@@ -19,6 +19,7 @@
 #include "ui/nvg_util.hpp"
 #include "fs.hpp"
 #include "nro.hpp"
+#include "nacp_compat.hpp"
 #include "defines.hpp"
 #include "image.hpp"
 #include "download.hpp"
@@ -314,7 +315,7 @@ void ShowForwarderEditor(const FileAssocEntry& assoc, const RomDatabaseIndexs& d
 
     forwarder::Config editor{};
     editor.values.title = nro.nacp.lang.name + std::string{" | "} + file_name;
-    editor.values.author = nacp.lang[0].author;
+    editor.values.author = NacpLanguageEntries(nacp)[0].author;
     editor.values.version = nacp.display_version;
     editor.values.icon = GetRomIcon(file_name, db_indexs, nro);
     editor.icon_source = db_indexs.empty() ? "NRO Icon"_i18n : "ROM Artwork"_i18n;

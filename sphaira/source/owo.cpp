@@ -20,6 +20,7 @@
 #include "app.hpp"
 #include "fs.hpp"
 #include "nro.hpp"
+#include "nacp_compat.hpp"
 #include "ui/progress_box.hpp"
 #include "i18n.hpp"
 #include "log.hpp"
@@ -513,14 +514,14 @@ auto patch_npdm(std::vector<u8>& npdm, const NpdmPatch& patch) -> bool {
 void patch_nacp(NacpStruct& nacp, const NcapPatch& patch) {
     // patch title
     if (!patch.name.empty()) {
-        for (auto& lang : nacp.lang) {
+        for (auto& lang : NacpLanguageEntries(nacp)) {
             std::strncpy(lang.name, patch.name.c_str(), sizeof(lang.name)-1);
         }
     }
 
     // patch author
     if (!patch.author.empty()) {
-        for (auto& lang : nacp.lang) {
+        for (auto& lang : NacpLanguageEntries(nacp)) {
             std::strncpy(lang.author, patch.author.c_str(), sizeof(lang.author)-1);
         }
     }

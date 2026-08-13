@@ -1,4 +1,5 @@
 #include "nro.hpp"
+#include "nacp_compat.hpp"
 #include "defines.hpp"
 #include "evman.hpp"
 #include "app.hpp"
@@ -307,7 +308,7 @@ auto nro_update_info(const fs::FsPath& path, std::string_view name, std::span<co
 
     NacpStruct nacp{};
     std::memcpy(&nacp, original.data() + asset_base + asset.nacp.offset, sizeof(nacp));
-    for (auto& language : nacp.lang) {
+    for (auto& language : NacpLanguageEntries(nacp)) {
         std::memset(language.name, 0, sizeof(language.name));
         std::memcpy(language.name, name.data(), name.size());
     }

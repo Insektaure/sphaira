@@ -11,6 +11,7 @@
 #include "log.hpp"
 #include "ui/nvg_util.hpp"
 #include "nro.hpp"
+#include "nacp_compat.hpp"
 #include "evman.hpp"
 #include "owo.hpp"
 #include "image.hpp"
@@ -820,7 +821,7 @@ void App::SetReplaceHbmenuEnable(bool enable) {
             // check we have already replaced hbmenu with sphaira
             NacpStruct hbmenu_nacp{};
             if (R_SUCCEEDED(nro_get_nacp("/hbmenu.nro", hbmenu_nacp))) {
-                if (std::strcmp(hbmenu_nacp.lang[0].name, "sphaira")) {
+                if (std::strcmp(NacpLanguageEntries(hbmenu_nacp)[0].name, "sphaira")) {
                     return;
                 }
             }
@@ -856,12 +857,12 @@ void App::SetReplaceHbmenuEnable(bool enable) {
 
                     // first, try and backup sphaira, its not super important if this fails.
                     rc = nro_get_nacp(sphaira_path, sphaira_nacp);
-                    if (R_FAILED(rc) || std::strcmp(sphaira_nacp.lang[0].name, "sphaira")) {
+                    if (R_FAILED(rc) || std::strcmp(NacpLanguageEntries(sphaira_nacp)[0].name, "sphaira")) {
                         sphaira_path = "/switch/sphaira.nro";
                         rc = nro_get_nacp(sphaira_path, sphaira_nacp);
                     }
 
-                    if (R_SUCCEEDED(rc) && !std::strcmp(sphaira_nacp.lang[0].name, "sphaira")) {
+                    if (R_SUCCEEDED(rc) && !std::strcmp(NacpLanguageEntries(sphaira_nacp)[0].name, "sphaira")) {
                         if (IsVersionNewer(sphaira_nacp.display_version, hbmenu_nacp.display_version)) {
                             if (R_FAILED(rc = g_app->m_fs->copy_entire_file(sphaira_path, "/hbmenu.nro"))) {
                                 log_write("failed to copy entire file: %s 0x%X module: %u desc: %u\n", sphaira_path.s, rc, R_MODULE(rc), R_DESCRIPTION(rc));
@@ -2776,7 +2777,7 @@ App::~App() {
 
                 // todo: don't read whole nacp, only the name.
                 // todo: keep file open and use that as part of the file copy.
-                if (R_SUCCEEDED(rc = nro_get_nacp("/hbmenu.nro", hbmenu_nacp)) && std::strcmp(hbmenu_nacp.lang[0].name, "sphaira")) {
+                if (R_SUCCEEDED(rc = nro_get_nacp("/hbmenu.nro", hbmenu_nacp)) && std::strcmp(NacpLanguageEntries(hbmenu_nacp)[0].name, "sphaira")) {
                     log_write("backing up hbmenu.nro\n");
                     if (R_FAILED(rc = m_fs->copy_entire_file("/switch/hbmenu.nro", "/hbmenu.nro"))) {
                         log_write("failed to backup  hbmenu.nro\n");
@@ -2796,18 +2797,18 @@ App::~App() {
                 Result rc;
 
                 // ensure that are still sphaira
-                if (R_SUCCEEDED(rc = nro_get_nacp("/hbmenu.nro", hbmenu_nacp)) && !std::strcmp(hbmenu_nacp.lang[0].name, "sphaira")) {
+                if (R_SUCCEEDED(rc = nro_get_nacp("/hbmenu.nro", hbmenu_nacp)) && !std::strcmp(NacpLanguageEntries(hbmenu_nacp)[0].name, "sphaira")) {
                     NacpStruct sphaira_nacp;
                     fs::FsPath sphaira_path = "/switch/sphaira/sphaira.nro";
 
                     rc = nro_get_nacp(sphaira_path, sphaira_nacp);
-                    if (R_FAILED(rc) || std::strcmp(sphaira_nacp.lang[0].name, "sphaira")) {
+                    if (R_FAILED(rc) || std::strcmp(NacpLanguageEntries(sphaira_nacp)[0].name, "sphaira")) {
                         sphaira_path = "/switch/sphaira.nro";
                         rc = nro_get_nacp(sphaira_path, sphaira_nacp);
                     }
 
                     // found sphaira, now lets get compare version
-                    if (R_SUCCEEDED(rc) && !std::strcmp(sphaira_nacp.lang[0].name, "sphaira")) {
+                    if (R_SUCCEEDED(rc) && !std::strcmp(NacpLanguageEntries(sphaira_nacp)[0].name, "sphaira")) {
                         if (IsVersionNewer(hbmenu_nacp.display_version, sphaira_nacp.display_version)) {
                             if (R_FAILED(rc = m_fs->copy_entire_file(GetExePath(), sphaira_path))) {
                                 log_write("failed to copy entire file: %s 0x%X module: %u desc: %u\n", sphaira_path.s, rc, R_MODULE(rc), R_DESCRIPTION(rc));

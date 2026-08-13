@@ -248,6 +248,7 @@ FetchContent_Declare(zstd
 FetchContent_Declare(libnxtc
     GIT_REPOSITORY https://github.com/ITotalJustice/libnxtc.git
     GIT_TAG 88ce3d8
+    PATCH_COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${CMAKE_SOURCE_DIR}/cmake/patches/libnxtc-libnx-nacp-layout.patch"
 )
 
 FetchContent_Declare(nvjpg
