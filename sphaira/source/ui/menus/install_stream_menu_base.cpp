@@ -179,7 +179,7 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
                 m_state = State::Failed;
                 OnDisableInstallMode();
             }
-        });
+        }, ui::ProgressBoxOption::ScreenToggle);
     }
 }
 

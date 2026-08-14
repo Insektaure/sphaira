@@ -137,7 +137,7 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
             } else {
                 m_state = State::Failed;
             }
-        });
+        }, ui::ProgressBoxOption::ScreenToggle);
     }
 }
 

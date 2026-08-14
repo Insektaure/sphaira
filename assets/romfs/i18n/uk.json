@@ -1193,5 +1193,6 @@
   "Homebrew search path added.": "Шлях пошуку Homebrew додано.",
   "Homebrew search path removed.": "Шлях пошуку Homebrew видалено.",
   "Failed to add Homebrew search path": "Не вдалося додати шлях пошуку Homebrew",
-  "Failed to remove Homebrew search path": "Не вдалося видалити шлях пошуку Homebrew"
+  "Failed to remove Homebrew search path": "Не вдалося видалити шлях пошуку Homebrew",
+  "Screen Off": "Вимкнути екран"
 }

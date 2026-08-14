@@ -1130,5 +1130,6 @@
   "Homebrew search path added.": "已添加 Homebrew 搜索路径。",
   "Homebrew search path removed.": "已移除 Homebrew 搜索路径。",
   "Failed to add Homebrew search path": "无法添加 Homebrew 搜索路径",
-  "Failed to remove Homebrew search path": "无法移除 Homebrew 搜索路径"
+  "Failed to remove Homebrew search path": "无法移除 Homebrew 搜索路径",
+  "Screen Off": "关闭屏幕"
 }

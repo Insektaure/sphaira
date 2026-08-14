@@ -1193,5 +1193,6 @@
   "Homebrew search path added.": "Homebrew search path added.",
   "Homebrew search path removed.": "Homebrew search path removed.",
   "Failed to add Homebrew search path": "Failed to add Homebrew search path",
-  "Failed to remove Homebrew search path": "Failed to remove Homebrew search path"
+  "Failed to remove Homebrew search path": "Failed to remove Homebrew search path",
+  "Screen Off": "Screen Off"
 }

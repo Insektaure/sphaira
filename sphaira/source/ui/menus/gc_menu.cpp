@@ -598,7 +598,7 @@ Menu::Menu(u32 flags) : MenuBase{"GameCard"_i18n, flags} {
                         if (R_SUCCEEDED(rc)) {
                             App::Notify("Gc install success!"_i18n);
                         }
-                    });
+                    }, ui::ProgressBoxOption::ScreenToggle);
                 }
             } else if (m_option_index == 1) {
                 auto options = std::make_unique<Sidebar>("Select content to dump"_i18n, Sidebar::Side::RIGHT);

@@ -848,7 +848,7 @@ void FsView::InstallFiles() {
                 R_SUCCEED();
             }, [this](Result rc){
                 App::PushErrorBox(rc, "File install failed!"_i18n);
-            });
+            }, ui::ProgressBoxOption::ScreenToggle);
         }
     });
 }

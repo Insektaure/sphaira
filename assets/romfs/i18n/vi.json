@@ -1193,5 +1193,6 @@
   "Homebrew search path added.": "Đã thêm đường dẫn tìm kiếm Homebrew.",
   "Homebrew search path removed.": "Đã xóa đường dẫn tìm kiếm Homebrew.",
   "Failed to add Homebrew search path": "Không thể thêm đường dẫn tìm kiếm Homebrew",
-  "Failed to remove Homebrew search path": "Không thể xóa đường dẫn tìm kiếm Homebrew"
+  "Failed to remove Homebrew search path": "Không thể xóa đường dẫn tìm kiếm Homebrew",
+  "Screen Off": "Tắt màn hình"
 }

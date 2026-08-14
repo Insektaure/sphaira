@@ -1191,5 +1191,6 @@
   "Homebrew search path added.": "Homebrew-zoekpad toegevoegd.",
   "Homebrew search path removed.": "Homebrew-zoekpad verwijderd.",
   "Failed to add Homebrew search path": "Homebrew-zoekpad kon niet worden toegevoegd",
-  "Failed to remove Homebrew search path": "Homebrew-zoekpad kon niet worden verwijderd"
+  "Failed to remove Homebrew search path": "Homebrew-zoekpad kon niet worden verwijderd",
+  "Screen Off": "Scherm uit"
 }

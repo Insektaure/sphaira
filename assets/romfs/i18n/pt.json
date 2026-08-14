@@ -1191,5 +1191,6 @@
   "Homebrew search path added.": "Caminho de pesquisa Homebrew adicionado.",
   "Homebrew search path removed.": "Caminho de pesquisa Homebrew removido.",
   "Failed to add Homebrew search path": "Não foi possível adicionar o caminho de pesquisa Homebrew",
-  "Failed to remove Homebrew search path": "Não foi possível remover o caminho de pesquisa Homebrew"
+  "Failed to remove Homebrew search path": "Não foi possível remover o caminho de pesquisa Homebrew",
+  "Screen Off": "Desligar tela"
 }

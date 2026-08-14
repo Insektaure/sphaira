@@ -1193,5 +1193,6 @@
   "Homebrew search path added.": "Homebrew-sökvägen har lagts till.",
   "Homebrew search path removed.": "Homebrew-sökvägen har tagits bort.",
   "Failed to add Homebrew search path": "Det gick inte att lägga till Homebrew-sökvägen",
-  "Failed to remove Homebrew search path": "Det gick inte att ta bort Homebrew-sökvägen"
+  "Failed to remove Homebrew search path": "Det gick inte att ta bort Homebrew-sökvägen",
+  "Screen Off": "Skärm av"
 }

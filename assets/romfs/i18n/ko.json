@@ -1165,5 +1165,6 @@
   "Homebrew search path added.": "Homebrew 검색 경로를 추가했습니다.",
   "Homebrew search path removed.": "Homebrew 검색 경로를 제거했습니다.",
   "Failed to add Homebrew search path": "Homebrew 검색 경로를 추가하지 못했습니다",
-  "Failed to remove Homebrew search path": "Homebrew 검색 경로를 제거하지 못했습니다"
+  "Failed to remove Homebrew search path": "Homebrew 검색 경로를 제거하지 못했습니다",
+  "Screen Off": "화면 끄기"
 }
