@@ -120,6 +120,7 @@ add_executable(sphaira
     source/threaded_file_transfer.cpp
     source/title_info.cpp
     source/minizip_helper.cpp
+    source/msp.cpp
     source/nx_versions.cpp
 
     source/utils/utils.cpp

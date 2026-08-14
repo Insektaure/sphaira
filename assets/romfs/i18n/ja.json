@@ -381,7 +381,7 @@
     "参考: 読み取り専用です。\nゲームの設置や削除はできません。"
   ],
   "install_mtp_info": [
-    "名前: Install (NSP, XCI, NSZ, XCZ)\n\nインストールフォルダーを表示します。\n",
+    "名前: Install (NSP, XCI, NSZ, XCZ, MSP)\n\nインストールフォルダーを表示します。\n",
     "このフォルダーはMTP経由でゲームをインストールする際に使われます。\n",
     "参考: 「MTPインストール」を通し、ファイルをフォルダーへドラッグ&ドロップしてください。"
   ],
@@ -420,7 +420,7 @@
   "Select export location": "抽出先を選択",
   "Please launch MTP install menu before trying to install": "インストールする前にMTPインストールメニューを起動してください。",
   "Album": "アルバム",
-  "Install (NSP, XCI, NSZ, XCZ)": "インストール (NSP、XCI、NSZ、XCZ)",
+  "Install (NSP, XCI, NSZ, XCZ, MSP)": "インストール (NSP、XCI、NSZ、XCZ、MSP)",
   " (Read Only)": " (読み取り専用)",
   "Unknown": "不明",
   "Application": "アプリケーション",
@@ -883,7 +883,7 @@
   "Failed to load image": "画像を読み込めませんでした",
   "Install failed!": "FTPインストールに失敗しました!",
   "Install success!": "FTPインストール完了しました!",
-  "Drag'n'Drop (NSP, XCI, NSZ, XCZ) to the install folder": "Install (NSP, XCI, NSZ, XCZ)",
+  "Drag'n'Drop (NSP, XCI, NSZ, XCZ, MSP) to the install folder": "Install (NSP, XCI, NSZ, XCZ, MSP)",
   "Failed to install, press B to exit...": "FTP経由でインストールできませんでした、を押して終了します。",
   "Irs": "Joy-Con IR カメラ",
   "0 (Sideways)": "0 (横)",

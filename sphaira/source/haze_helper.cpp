@@ -34,7 +34,7 @@ Mutex g_mutex{};
 InstallSharedData g_shared_data{};
 
 const char* SUPPORTED_EXT[] = {
-    ".nsp", ".xci", ".nsz", ".xcz",
+    ".nsp", ".xci", ".nsz", ".xcz", ".msp",
 };
 
 // ive given up with good names.
@@ -758,7 +758,7 @@ bool Init() {
     }
 
     if (App::GetApp()->m_mtp_show_install.Get()) {
-        g_fs_entries.emplace_back(std::make_shared<FsInstallProxy>("install", "Install (NSP, XCI, NSZ, XCZ)"));
+        g_fs_entries.emplace_back(std::make_shared<FsInstallProxy>("install", "Install (NSP, XCI, NSZ, XCZ, MSP)"));
     }
 
     if (App::GetApp()->m_mtp_show_mounts.Get()) {
