@@ -126,11 +126,12 @@ public:
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_title_focused = false;
                 m_icon_focused = true;
+                return;
             } else if (controller->GotDown(Button::RIGHT)) {
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_title_focused = false;
+                return;
             }
-            return;
         }
 
         if (m_icon_focused) {
@@ -138,11 +139,12 @@ public:
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_icon_focused = false;
                 m_title_focused = true;
+                return;
             } else if (controller->GotDown(Button::RIGHT)) {
                 App::PlaySoundEffect(SoundEffect::Focus);
                 m_icon_focused = false;
+                return;
             }
-            return;
         }
 
         if (controller->GotDown(Button::LEFT)) {
