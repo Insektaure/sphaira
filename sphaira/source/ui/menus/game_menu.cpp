@@ -844,18 +844,18 @@ void Menu::SetIndex(s64 index) {
                 }
 
                 const u64 total_minutes = entry.user_playtimes[i] / 60000000000ULL;
-                title_info += " | P" + std::to_string(i + 1) + " " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+                title_info += " | P" + std::to_string(i + 1) + " " + std::to_string(total_minutes / 60) + "h "_i18n + std::to_string(total_minutes % 60) + "m"_i18n;
                 showed_profile = true;
             }
         }
 
         if (!showed_profile) {
             const u64 total_minutes = entry.playtime / 60000000000ULL;
-            title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+            title_info += " | " + std::to_string(total_minutes / 60) + "h "_i18n + std::to_string(total_minutes % 60) + "m"_i18n;
         }
     } else if (entry.playtime_cached) {
         const u64 total_minutes = entry.playtime / 60000000000ULL;
-        title_info += " | " + std::to_string(total_minutes / 60) + "h " + std::to_string(total_minutes % 60) + "m";
+        title_info += " | " + std::to_string(total_minutes / 60) + "h "_i18n + std::to_string(total_minutes % 60) + "m"_i18n;
     } else {
         title_info += " | " + "No statistics"_i18n;
     }
