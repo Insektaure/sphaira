@@ -511,6 +511,8 @@
   "Updating play statistics": "Uppdatering av spelstatistik",
   "Failed to update play statistics!": "Det gick inte att uppdatera spelstatistiken!",
   "Play statistics unavailable": "Spelstatistik är inte tillgänglig",
+  "Play statistics": "Spelstatistik",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "Visar speltid och aktiverar sorteringar efter spelstatistik. Inaktivera för snabbare listuppdateringar och färre skrivningar till SD-kortet i stora bibliotek.",
   "No statistics": "Ingen statistik",
   "Empty!": "Tomt!",
   "Filter: %s | Sort: %s | Order: %s": "Filter: %s | Sortering: %s | Ordning: %s",

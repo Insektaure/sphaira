@@ -512,6 +512,8 @@
   "Updating play statistics": "Обновление игровой статистики",
   "Failed to update play statistics!": "Не удалось обновить игровую статистику!",
   "Play statistics unavailable": "Статистика игры недоступна.",
+  "Play statistics": "Игровая статистика",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "Показывает время игры и включает сортировку по игровой статистике. Отключите для более быстрого обновления списка и меньшего числа записей на SD-карту в больших библиотеках.",
   "No statistics": "Нет статистики",
   "Empty!": "Пусто!",
   "Filter: %s | Sort: %s | Order: %s": "Показывать: %s | Сортировка: %s | Порядок: %s",

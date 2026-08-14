@@ -81,6 +81,11 @@ private:
     void StopPlaytimeWorker(bool apply_results);
     void ApplyPlaytimeResults();
     void SyncEntryToMaster(const Entry& entry);
+    void SetPlayStatsEnabled(bool enable);
+
+    auto IsPlayStatsEnabled() -> bool {
+        return m_play_stats.Get();
+    }
 
     auto GetSelectedEntries() const {
         std::vector<Entry> out;
@@ -134,6 +139,9 @@ private:
     option::OptionLong m_order{INI_SECTION, "order", OrderType::OrderType_Descending};
     option::OptionLong m_layout{INI_SECTION, "layout", LayoutType::LayoutType_Grid};
     option::OptionBool m_hide_forwarders{INI_SECTION, "hide_forwarders", false};
+    // when disabled, pdm:qry is never opened and playlog.ini is never touched
+    // by this menu, as both add per-entry io whilst navigating the list.
+    option::OptionBool m_play_stats{INI_SECTION, "play_stats", true};
 };
 
 struct NcmMetaData {

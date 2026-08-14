@@ -503,6 +503,8 @@
   "Updating play statistics": "プレイ統計の更新",
   "Failed to update play statistics!": "プレイ統計を更新できませんでした。",
   "Play statistics unavailable": "プレイ統計は利用できません",
+  "Play statistics": "プレイ統計",
+  "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries.": "プレイ時間を表示し、プレイ統計による並べ替えを有効にします。無効にすると、大きなライブラリでのリスト更新が速くなり、SDカードへの書き込みが減ります。",
   "No statistics": "統計はありません",
   "Empty!": "何も見つかりません",
   "Filter: %s | Sort: %s | Order: %s": "フィルター: %s | 並べ替え: %s | 順番: %s",
