@@ -644,6 +644,15 @@ Menu::Menu(u32 flags) : MenuBase{"GameCard"_i18n, flags} {
         }})
     );
 
+    // allow turning the screen off during the install, any button press
+    // (or exiting this menu) restores it.
+    App::SetScreenToggleEnabled(true);
+    if (App::IsScreenToggleEnabled()) {
+        SetAction(Button::Y, Action{"Screen Off"_i18n, [](){
+            App::SetScreenDisabled(true);
+        }});
+    }
+
     const Vec4 v{485, 275, 720, 70};
     const Vec2 pad{0, 23.75};
 
@@ -661,6 +670,8 @@ Menu::~Menu() {
     eventClose(std::addressof(m_event));
     fsEventNotifierClose(std::addressof(m_event_notifier));
     fsDeviceOperatorClose(std::addressof(m_dev_op));
+
+    App::SetScreenToggleEnabled(false);
 }
 
 void Menu::Update(Controller* controller, TouchInfo* touch) {

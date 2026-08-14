@@ -212,6 +212,15 @@ public:
         }
     }
 
+    // enables the ability to turn the screen off, ref counted.
+    // the screen is always restored when the last reference is removed.
+    static void SetScreenToggleEnabled(bool enable);
+    static auto IsScreenToggleEnabled() -> bool;
+
+    // turns the lcd backlight off / on.
+    static void SetScreenDisabled(bool disable);
+    static auto IsScreenDisabled() -> bool;
+
     static void SetBoostMode(bool enable, bool force = false) {
         static Mutex mutex{};
         static int ref_count{};

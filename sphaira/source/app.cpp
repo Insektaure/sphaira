@@ -106,6 +106,10 @@ constexpr KeyboardState::MapEntry KEYBOARD_BUTTON_MAP[] = {
     {HidKeyboardKey_R,              static_cast<u64>(Button::SELECT)},
 };
 
+// used by the screen toggle (lcd backlight) api.
+Mutex g_screen_mutex{};
+int g_screen_toggle_ref{};
+
 constexpr NszOption NSZ_COMPRESS_LEVEL_OPTIONS[] = {
     { .value = 0, .name = "Level 0 (no compression)" },
     { .value = 1, .name = "Level 1" },
@@ -1042,6 +1046,56 @@ void App::ExitRestart() {
     Exit();
 }
 
+void App::SetScreenToggleEnabled(bool enable) {
+    SCOPED_MUTEX(&g_screen_mutex);
+
+    if (enable) {
+        if (!g_screen_toggle_ref) {
+            if (auto rc = lblInitialize(); R_FAILED(rc)) {
+                log_write("lblInitialize() failed: 0x%X\n", rc);
+                return;
+            }
+        }
+
+        g_screen_toggle_ref++;
+    } else {
+        if (!g_screen_toggle_ref) {
+            return;
+        }
+
+        g_screen_toggle_ref--;
+        if (!g_screen_toggle_ref) {
+            // always restore the screen for the next menu / on exit.
+            appletSetLcdBacklightOffEnabled(false);
+            lblExit();
+        }
+    }
+}
+
+auto App::IsScreenToggleEnabled() -> bool {
+    SCOPED_MUTEX(&g_screen_mutex);
+    return g_screen_toggle_ref > 0;
+}
+
+void App::SetScreenDisabled(bool disable) {
+    if (disable == IsScreenDisabled()) {
+        return;
+    }
+
+    // use applet here because it handles restoring the backlight
+    // when pressing the home / power button.
+    appletSetLcdBacklightOffEnabled(disable);
+}
+
+auto App::IsScreenDisabled() -> bool {
+    LblBacklightSwitchStatus status;
+    if (R_FAILED(lblGetBacklightSwitchStatus(&status))) {
+        return false;
+    }
+
+    return status != LblBacklightSwitchStatus_Enabled;
+}
+
 void App::Poll() {
     m_controller.Reset();
 
@@ -1160,6 +1214,14 @@ void App::Update() {
         if (song_state == audio::State::Finished) {
             audio::SeekSong(m_background_music, 0);
         }
+    }
+
+    // whilst the screen is disabled, the first button press restores it
+    // and is otherwise ignored, this way the screen is always restored
+    // before performing an action, such as cancelling an install or exiting.
+    if (m_controller.m_kdown && App::IsScreenToggleEnabled() && App::IsScreenDisabled()) {
+        App::SetScreenDisabled(false);
+        m_controller.Reset();
     }
 
     m_widgets.back()->Update(&m_controller, &m_touch_info);

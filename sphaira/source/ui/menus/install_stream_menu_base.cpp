@@ -132,6 +132,15 @@ Menu::Menu(const std::string& title, u32 flags) : MenuBase{title, flags} {
         App::DisplayInstallOptions(false);
     }});
 
+    // allow turning the screen off during the install, any button press
+    // (or exiting this menu) restores it.
+    App::SetScreenToggleEnabled(true);
+    if (App::IsScreenToggleEnabled()) {
+        SetAction(Button::Y, Action{"Screen Off"_i18n, [](){
+            App::SetScreenDisabled(true);
+        }});
+    }
+
     App::SetAutoSleepDisabled(true);
     mutexInit(&m_mutex);
 
@@ -147,6 +156,7 @@ Menu::~Menu() {
     }
 
     App::SetAutoSleepDisabled(false);
+    App::SetScreenToggleEnabled(false);
 }
 
 void Menu::Update(Controller* controller, TouchInfo* touch) {

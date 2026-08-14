@@ -43,6 +43,14 @@ ProgressBox::ProgressBox(int image, const std::string& action, const std::string
         });
     }});
 
+    // enabled by the install menus (mtp, usb, ftp), the screen is restored
+    // by the app on any button press and when leaving the install menu.
+    if (App::IsScreenToggleEnabled()) {
+        SetAction(Button::Y, Action{"Screen Off"_i18n, [](){
+            App::SetScreenDisabled(true);
+        }});
+    }
+
     m_pos.w = 770.f;
     m_pos.h = 295.f;
     m_pos.x = (SCREEN_WIDTH / 2.f) - (m_pos.w / 2.f);

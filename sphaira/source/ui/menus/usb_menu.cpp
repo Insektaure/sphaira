@@ -33,6 +33,15 @@ Menu::Menu(u32 flags) : MenuBase{"USB"_i18n, flags} {
         App::DisplayInstallOptions(false);
     }});
 
+    // allow turning the screen off during the install, any button press
+    // (or exiting this menu) restores it.
+    App::SetScreenToggleEnabled(true);
+    if (App::IsScreenToggleEnabled()) {
+        SetAction(Button::Y, Action{"Screen Off"_i18n, [](){
+            App::SetScreenDisabled(true);
+        }});
+    }
+
     // if mtp is enabled, disable it for now.
     m_was_mtp_enabled = App::GetMtpEnable();
     if (m_was_mtp_enabled) {
@@ -71,6 +80,8 @@ Menu::~Menu() {
         App::Notify("Re-enabled MTP"_i18n);
         App::SetMtpEnable(true);
     }
+
+    App::SetScreenToggleEnabled(false);
 }
 
 void Menu::Update(Controller* controller, TouchInfo* touch) {
