@@ -154,8 +154,15 @@ public:
             return;
         }
 
+        if ((m_title_focused || m_icon_focused)
+            && !touch->is_clicked && !touch->is_scroll && !touch->is_end) {
+            return;
+        }
+
         m_list->OnUpdate(controller, touch, m_index, m_rows.size(), [this](bool touched, s64 index){
             if (touched && m_index == index) {
+                m_icon_focused = false;
+                m_title_focused = false;
                 FireAction(Button::A);
             } else {
                 App::PlaySoundEffect(SoundEffect::Focus);
