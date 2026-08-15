@@ -5,6 +5,7 @@
 #include "defines.hpp"
 #include "i18n.hpp"
 #include "image.hpp"
+#include "nx_versions.hpp"
 #include "swkbd.hpp"
 
 #include "utils/utils.hpp"
@@ -534,7 +535,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                 }, true);
             }
 
-            if (m_entries.size()) {
+            if (!m_all_entries.empty()) {
                 options->Add<SidebarEntryCallback>("Sort By"_i18n, [this](){
                     auto options = std::make_unique<Sidebar>("Sort Options"_i18n, Sidebar::Side::RIGHT);
                     ON_SCOPE_EXIT(App::Push(std::move(options)));
@@ -595,8 +596,15 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                         m_hide_forwarders.Set(v_out);
                         m_dirty = true;
                     });
-                });
 
+                    options->Add<SidebarEntryBool>("Missing updates or DLC"_i18n, m_missing_content_filter, [this](bool& enable){
+                        App::PopToMenu();
+                        SetMissingContentFilter(enable);
+                    });
+                });
+            }
+
+            if (m_entries.size()) {
                 options->Add<SidebarEntryCallback>("View application content"_i18n, [this](){
                     App::Push<meta::Menu>(m_entries[m_index]);
                 });
@@ -658,30 +666,32 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     SetPlayStatsEnabled(v_out);
                 }, "Shows playtime and enables the play statistic sorts. Disable for faster list refreshes and fewer SD card writes on large libraries."_i18n);
 
-                options->Add<SidebarEntryCallback>("Create contents folder"_i18n, [this](){
-                    const auto rc = fs::FsNativeSd().CreateDirectory(title::GetContentsPath(m_entries[m_index].app_id));
-                    App::PushErrorBox(rc, "Folder create failed!"_i18n);
+                if (!m_entries.empty()) {
+                    options->Add<SidebarEntryCallback>("Create contents folder"_i18n, [this](){
+                        const auto rc = fs::FsNativeSd().CreateDirectory(title::GetContentsPath(m_entries[m_index].app_id));
+                        App::PushErrorBox(rc, "Folder create failed!"_i18n);
 
-                    if (R_SUCCEEDED(rc)) {
-                        App::Notify("Folder created!"_i18n);
-                    }
-                });
-
-                options->Add<SidebarEntryCallback>("Create save"_i18n, [this](){
-                    ui::PopupList::Items items{};
-                    const auto accounts = App::GetAccountList();
-                    for (auto& p : accounts) {
-                        items.emplace_back(p.nickname);
-                    }
-
-                    App::Push<ui::PopupList>(
-                        "Select user to create save for"_i18n, items, [this, accounts](auto op_index){
-                            if (op_index) {
-                                CreateSaves(accounts[*op_index].uid);
-                            }
+                        if (R_SUCCEEDED(rc)) {
+                            App::Notify("Folder created!"_i18n);
                         }
-                    );
-                });
+                    });
+
+                    options->Add<SidebarEntryCallback>("Create save"_i18n, [this](){
+                        ui::PopupList::Items items{};
+                        const auto accounts = App::GetAccountList();
+                        for (auto& p : accounts) {
+                            items.emplace_back(p.nickname);
+                        }
+
+                        App::Push<ui::PopupList>(
+                            "Select user to create save for"_i18n, items, [this, accounts](auto op_index){
+                                if (op_index) {
+                                    CreateSaves(accounts[*op_index].uid);
+                                }
+                            }
+                        );
+                    });
+                }
 
                 options->Add<SidebarEntryCallback>("Delete title cache"_i18n, [this](){
                     App::Push<OptionBox>(
@@ -806,6 +816,13 @@ void Menu::OnFocusGained() {
     MenuBase::OnFocusGained();
     if (m_all_entries.empty()) {
         ScanHomebrew();
+    } else if (m_missing_content_scanned && m_missing_content_catalog_revision != nx_versions::GetCatalogRevision()) {
+        const bool was_filtered = m_missing_content_filter;
+        InvalidateMissingContentCache();
+        if (was_filtered) {
+            Filter();
+            SortAndFindLastFile(false);
+        }
     }
 }
 
@@ -981,18 +998,29 @@ void Menu::ScanHomebrew() {
 }
 
 void Menu::Filter() {
-    if (m_search_query.empty()) {
+    if (m_search_query.empty() && !m_missing_content_filter) {
         m_entries = m_all_entries;
         return;
     }
 
     auto query = m_search_query;
-    std::ranges::transform(query, query.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
+    if (!query.empty()) {
+        std::ranges::transform(query, query.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+    }
 
     m_entries.clear();
     for (auto& entry : m_all_entries) {
+        if (m_missing_content_filter && !m_missing_content_app_ids.contains(entry.app_id)) {
+            continue;
+        }
+
+        if (query.empty()) {
+            m_entries.push_back(entry);
+            continue;
+        }
+
         LoadControlEntry(entry);
         auto name = std::string{entry.GetName()};
         std::ranges::transform(name, name.begin(), [](unsigned char ch) {
@@ -1190,6 +1218,137 @@ void Menu::SetPlayStatsEnabled(bool enable) {
     m_dirty = true;
 }
 
+void Menu::SetMissingContentFilter(bool enable) {
+    if (!enable) {
+        m_missing_content_filter = false;
+        Filter();
+        SortAndFindLastFile(false);
+        ClearSelection();
+        return;
+    }
+
+    const auto state = nx_versions::GetCatalogState();
+    if (state == nx_versions::CatalogState::Current) {
+        StartMissingContentScan();
+        return;
+    }
+
+    App::Push<OptionBox>(
+        "Version list is missing or outdated. Download it now?"_i18n,
+        "No"_i18n, "Download"_i18n, 0, [this, state](auto op_index){
+            if (!op_index) {
+                return;
+            }
+
+            if (*op_index) {
+                DownloadAndScanMissingContent();
+            } else if (state == nx_versions::CatalogState::Stale) {
+                StartMissingContentScan();
+            }
+        }
+    );
+}
+
+void Menu::StartMissingContentScan() {
+    const auto catalog_revision = nx_versions::GetCatalogRevision();
+    if (m_missing_content_scanned && m_missing_content_catalog_revision == catalog_revision) {
+        m_missing_content_filter = true;
+        Filter();
+        SortAndFindLastFile(false);
+        ClearSelection();
+        return;
+    }
+
+    auto app_ids = std::make_shared<std::vector<u64>>();
+    app_ids->reserve(m_all_entries.size());
+    for (const auto& entry : m_all_entries) {
+        app_ids->push_back(entry.app_id);
+    }
+
+    auto missing_content = std::make_shared<std::unordered_set<u64>>();
+    App::Push<ProgressBox>(0, "Scanning "_i18n, "Missing updates or DLC"_i18n,
+        [app_ids, missing_content](auto pbox) -> Result {
+            missing_content->reserve(app_ids->size());
+
+            nx_versions::InstalledVersions installed;
+            installed.reserve(app_ids->size() * 4);
+            title::MetaEntries meta_entries;
+            size_t attempted_queries{};
+            size_t successful_queries{};
+            Result last_error{};
+
+            pbox->UpdateTransfer(0, app_ids->size());
+            for (size_t i = 0; i < app_ids->size(); i++) {
+                R_TRY(pbox->ShouldExitResult());
+
+                const auto app_id = (*app_ids)[i];
+                if (nx_versions::HasEntries(app_id)) {
+                    attempted_queries++;
+                    meta_entries.clear();
+                    const auto rc = title::GetMetaEntries(app_id, meta_entries);
+                    if (R_SUCCEEDED(rc)) {
+                        successful_queries++;
+                        for (const auto& meta : meta_entries) {
+                            const auto [it, inserted] = installed.try_emplace(meta.application_id, meta.version);
+                            if (!inserted) {
+                                it->second = std::max(it->second, meta.version);
+                            }
+                        }
+
+                        if (nx_versions::HasAvailable(app_id, installed)) {
+                            missing_content->insert(app_id);
+                        }
+                    } else {
+                        last_error = rc;
+                        log_write("[nx_versions] failed to query metadata for %016lX: 0x%X\n", app_id, rc);
+                    }
+                }
+
+                pbox->SetTitle(std::to_string(i + 1) + " / " + std::to_string(app_ids->size()));
+                pbox->UpdateTransfer(i + 1, app_ids->size());
+            }
+
+            if (attempted_queries && !successful_queries) {
+                return last_error;
+            }
+
+            R_SUCCEED();
+        },
+        [this, missing_content, catalog_revision](Result rc) {
+            if (R_SUCCEEDED(rc)) {
+                m_missing_content_app_ids = std::move(*missing_content);
+                m_missing_content_catalog_revision = catalog_revision;
+                m_missing_content_scanned = true;
+                m_missing_content_filter = true;
+                Filter();
+                SortAndFindLastFile(false);
+                ClearSelection();
+            } else if (rc != Result_TransferCancelled) {
+                App::PushErrorBox(rc, "An error occurred"_i18n);
+            }
+        }
+    );
+}
+
+void Menu::DownloadAndScanMissingContent() {
+    App::Push<ProgressBox>(0, "Downloading "_i18n, "Version List"_i18n, [](auto pbox) -> Result {
+        return nx_versions::Download(pbox);
+    }, [this](Result rc) {
+        if (R_SUCCEEDED(rc)) {
+            StartMissingContentScan();
+        } else if (rc != Result_TransferCancelled) {
+            App::PushErrorBox(rc, "Failed to update version list"_i18n);
+        }
+    });
+}
+
+void Menu::InvalidateMissingContentCache() {
+    m_missing_content_filter = false;
+    m_missing_content_scanned = false;
+    m_missing_content_catalog_revision = 0;
+    m_missing_content_app_ids.clear();
+}
+
 void Menu::LoadPlaytime() {
     if (!m_play_stats.Get() || !m_pdm_initialized) {
         App::Notify("Play statistics unavailable"_i18n);
@@ -1298,6 +1457,7 @@ void Menu::FreeEntries() {
 
     m_entries.clear();
     m_all_entries.clear();
+    InvalidateMissingContentCache();
 }
 
 void Menu::OnLayoutChange() {

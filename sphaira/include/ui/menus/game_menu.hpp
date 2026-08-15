@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 #include <span>
 
@@ -82,6 +83,10 @@ private:
     void ApplyPlaytimeResults();
     void SyncEntryToMaster(const Entry& entry);
     void SetPlayStatsEnabled(bool enable);
+    void SetMissingContentFilter(bool enable);
+    void StartMissingContentScan();
+    void DownloadAndScanMissingContent();
+    void InvalidateMissingContentCache();
 
     auto IsPlayStatsEnabled() -> bool {
         return m_play_stats.Get();
@@ -121,6 +126,7 @@ private:
 
     std::vector<Entry> m_entries{};
     std::vector<Entry> m_all_entries{};
+    std::unordered_set<u64> m_missing_content_app_ids{};
     std::string m_search_query{};
     std::vector<AccountProfileBase> m_accounts{};
     s64 m_index{}; // where i am in the array
@@ -129,6 +135,9 @@ private:
     bool m_is_reversed{};
     bool m_dirty{};
     bool m_pdm_initialized{};
+    bool m_missing_content_filter{};
+    bool m_missing_content_scanned{};
+    u64 m_missing_content_catalog_revision{};
     std::unique_ptr<PlaytimeWorker> m_playtime_worker{};
 
     // use for detection game card removal to force a refresh.
