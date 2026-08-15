@@ -519,6 +519,12 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
             }
             LaunchEntry(m_entries[m_index]);
         }}),
+        std::make_pair(Button::Y, Action{"View Content"_i18n, [this](){
+            if (m_entries.empty()) {
+                return;
+            }
+            App::Push<meta::Menu>(m_entries[m_index]);
+        }}),
         std::make_pair(Button::X, Action{"Options"_i18n, [this](){
             auto options = std::make_unique<Sidebar>("Game Options"_i18n, Sidebar::Side::RIGHT);
             ON_SCOPE_EXIT(App::Push(std::move(options)));
@@ -605,10 +611,6 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
             }
 
             if (m_entries.size()) {
-                options->Add<SidebarEntryCallback>("View application content"_i18n, [this](){
-                    App::Push<meta::Menu>(m_entries[m_index]);
-                });
-
                 options->Add<SidebarEntryCallback>("Launch random game"_i18n, [this](){
                     const auto random_index = randomGet64() % std::size(m_entries);
                     auto& e = m_entries[random_index];
