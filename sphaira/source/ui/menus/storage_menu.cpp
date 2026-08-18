@@ -439,7 +439,9 @@ void Menu::UpdateSubHeading() {
     const auto index = count ? m_index + 1 : 0;
     this->SetSubHeading(std::to_string(index) + " / " + std::to_string(count));
 
-    if (m_scanning) {
+    // with a warm cache the list is already on screen, so the scan is a
+    // background detail rather than something to wait on.
+    if (m_scanning && m_view.empty()) {
         this->SetTitleSubHeading(
             "Calculating..."_i18n + " " + std::to_string(m_scan_index) + " / " + std::to_string(m_entries.size()));
     } else {
@@ -486,15 +488,27 @@ void Menu::ScanRecords() {
         offset += record_count;
     }
 
+    // seed from the cache so the list is usable on the first frame. every
+    // entry is still verified below, that just happens in the background
+    // instead of behind a "Calculating..." screen.
+    for (auto& e : m_entries) {
+        if (const auto it = m_cache.find(e.game.app_id); it != m_cache.end()) {
+            ApplyCacheValue(e, it->second);
+            m_games_sd += e.size_sd;
+            m_games_nand += e.size_nand;
+        }
+    }
+
     m_scan_index = 0;
     m_scanning = !m_entries.empty();
-    m_largest = 1;
 
     if (!m_scanning) {
         OnScanComplete();
-    } else {
-        UpdateSubHeading();
+        return;
     }
+
+    FilterAndSort();
+    SetIndex(0);
 }
 
 void Menu::ScanSizeStep() {
@@ -509,7 +523,13 @@ void Menu::ScanSizeStep() {
         }
 
         auto& e = m_entries[m_scan_index];
+
+        // the seeded contribution is replaced by the verified one.
+        m_games_sd -= e.size_sd;
+        m_games_nand -= e.size_nand;
+
         CalculateSize(e);
+
         m_games_sd += e.size_sd;
         m_games_nand += e.size_nand;
     }
@@ -524,6 +544,10 @@ void Menu::ScanSizeStep() {
 void Menu::OnScanComplete() {
     m_scanning = false;
     SetBoost(false);
+
+    // the list was already browsable during the scan, so keep whatever the
+    // user had highlighted rather than snapping back to the top.
+    const u64 selected_id = HasEntry() ? GetEntry().game.app_id : 0;
 
     // drop cache entries for games that are no longer installed. this is only
     // safe here, where every application record has just been visited.
@@ -552,10 +576,41 @@ void Menu::OnScanComplete() {
     }
 
     FilterAndSort();
-    SetIndex(0);
+
+    s64 index = 0;
+    for (u32 i = 0; i < m_view.size(); i++) {
+        if (m_entries[m_view[i]].game.app_id == selected_id) {
+            index = i;
+            break;
+        }
+    }
+
+    SetIndex(index);
+}
+
+void Menu::ClearSizes(Entry& e) {
+    e.size_base = 0;
+    e.size_update = 0;
+    e.size_dlc = 0;
+    e.size_sd = 0;
+    e.size_nand = 0;
+    e.size_total = 0;
+}
+
+void Menu::ApplyCacheValue(Entry& e, const CacheValue& value) {
+    e.size_base = value.size_base;
+    e.size_update = value.size_update;
+    e.size_dlc = value.size_dlc;
+    e.size_sd = value.size_sd;
+    e.size_nand = value.size_nand;
+    e.size_total = value.size_sd + value.size_nand;
 }
 
 void Menu::CalculateSize(Entry& e) {
+    // anything already seeded from the cache is unverified, drop it and
+    // rebuild from what ncm reports now.
+    ClearSizes(e);
+
     title::MetaEntries meta_entries;
     if (R_FAILED(title::GetMetaEntries(e.game.app_id, meta_entries))) {
         return;
@@ -567,13 +622,7 @@ void Menu::CalculateSize(Entry& e) {
     const auto fingerprint = MakeFingerprint(meta_entries);
 
     if (const auto it = m_cache.find(e.game.app_id); it != m_cache.end() && it->second.fingerprint == fingerprint) {
-        const auto& value = it->second;
-        e.size_base = value.size_base;
-        e.size_update = value.size_update;
-        e.size_dlc = value.size_dlc;
-        e.size_sd = value.size_sd;
-        e.size_nand = value.size_nand;
-        e.size_total = value.size_sd + value.size_nand;
+        ApplyCacheValue(e, it->second);
         m_cache_hits++;
         return;
     }
@@ -728,6 +777,10 @@ void Menu::FilterAndSort() {
     for (u32 i = 0; i < m_entries.size(); i++) {
         const auto& e = m_entries[i];
 
+        // not measured yet, or nothing installed on the console.
+        if (e.size_total <= 0) {
+            continue;
+        }
         if (filter == FilterType_Sd && !e.size_sd) {
             continue;
         }

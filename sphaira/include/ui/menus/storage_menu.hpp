@@ -93,6 +93,9 @@ private:
     void SaveCache();
     void ClearCache();
 
+    static void ClearSizes(Entry& e);
+    static void ApplyCacheValue(Entry& e, const CacheValue& value);
+
     void FilterAndSort();
     void FreeEntries();
 
