@@ -96,29 +96,31 @@ void SignalChange() {
 Menu::Menu(u32 flags) : grid::Menu{"Album"_i18n, flags} {
     this->SetActions(
         std::make_pair(Button::L3, Action{[this](){
-            if (m_entries.empty()) {
+            if (m_view.empty()) {
                 return;
             }
 
-            m_entries[m_index].selected ^= 1;
+            auto& e = m_entries[m_view[m_index]];
+            e.selected ^= 1;
 
-            if (m_entries[m_index].selected) {
+            if (e.selected) {
                 m_selected_count++;
             } else {
                 m_selected_count--;
             }
         }}),
         std::make_pair(Button::R3, Action{[this](){
-            if (m_entries.empty()) {
+            if (m_view.empty()) {
                 return;
             }
 
-            if (m_selected_count == (s64)m_entries.size()) {
+            if (m_selected_count == (s64)m_view.size()) {
                 ClearSelection();
             } else {
-                m_selected_count = m_entries.size();
-                for (auto& e : m_entries) {
-                    e.selected = true;
+                ClearSelection();
+                m_selected_count = m_view.size();
+                for (const auto i : m_view) {
+                    m_entries[i].selected = true;
                 }
             }
         }}),
@@ -150,6 +152,8 @@ Menu::Menu(u32 flags) : grid::Menu{"Album"_i18n, flags} {
 }
 
 Menu::~Menu() {
+    m_scan_thread.reset();
+
     FreeEntries();
 
     if (m_caps_init) {
@@ -164,12 +168,16 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
         m_dirty = true;
     }
 
-    // the listing is two ipc calls, so there is nothing to be gained by
-    // holding on to a stale one.
+    // a rescan runs off the ui thread, so a refresh is never felt.
     if (m_dirty && m_caps_init) {
         m_dirty = false;
         Scan();
         App::Notify("Album updated"_i18n);
+    }
+
+    if (m_scanning && m_scan_done) {
+        m_scan_thread.reset();
+        FinishScan();
     }
 
     if (R_FAILED(m_scan_rc)) {
@@ -179,7 +187,7 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
 
     MenuBase::Update(controller, touch);
 
-    m_list->OnUpdate(controller, touch, m_index, m_entries.size(), [this](bool touch, auto i) {
+    m_list->OnUpdate(controller, touch, m_index, m_view.size(), [this](bool touch, auto i) {
         if (touch && m_index == i) {
             FireAction(Button::A);
         } else {
@@ -192,7 +200,15 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
 void Menu::Draw(NVGcontext* vg, Theme* theme) {
     MenuBase::Draw(vg, theme);
 
-    if (m_entries.empty()) {
+    if (m_scanning) {
+        const auto cx = GetX() + GetW() / 2.f;
+        const auto cy = GetY() + GetH() / 2.f;
+        gfx::drawSpinner(vg, theme, cx, cy - 30.f, 30.f, armTicksToNs(armGetSystemTick()) / 1e+9);
+        gfx::drawTextArgs(vg, cx, cy + 40.f, 24.f, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE, theme->GetColour(ThemeEntryID_TEXT_INFO), "Loading"_i18n.c_str());
+        return;
+    }
+
+    if (m_view.empty()) {
         gfx::drawTextArgs(vg, GetX() + GetW() / 2.f, GetY() + GetH() / 2.f, 36.f, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE, theme->GetColour(ThemeEntryID_TEXT_INFO), "Empty..."_i18n.c_str());
         return;
     }
@@ -203,15 +219,15 @@ void Menu::Draw(NVGcontext* vg, Theme* theme) {
 
     // what is actually on screen, which is not always centred on the cursor
     // because the list can be scrolled by touch without moving it.
-    s64 first_drawn = m_entries.size();
+    s64 first_drawn = m_view.size();
     s64 last_drawn = 0;
 
-    m_list->Draw(vg, theme, m_entries.size(), [this, &image_load_count, &first_drawn, &last_drawn, image_load_max](auto* vg, auto* theme, auto v, auto pos) {
+    m_list->Draw(vg, theme, m_view.size(), [this, &image_load_count, &first_drawn, &last_drawn, image_load_max](auto* vg, auto* theme, auto v, auto pos) {
         first_drawn = std::min<s64>(first_drawn, pos);
         last_drawn = std::max<s64>(last_drawn, pos);
 
         const auto& [x, y, w, h] = v;
-        auto& e = m_entries[pos];
+        auto& e = m_entries[m_view[pos]];
 
         LoadTitle(e);
 
@@ -253,19 +269,28 @@ void Menu::SetIndex(s64 index) {
         m_list->SetYoff(0);
     }
 
-    const auto position = m_entries.empty()
+    const auto position = m_view.empty()
         ? std::string{"0 / 0"}
-        : std::to_string(m_index + 1) + " / " + std::to_string(m_entries.size());
+        : std::to_string(m_index + 1) + " / " + std::to_string(m_view.size());
 
     this->SetSubHeading(position
         + " | " + "Screenshots"_i18n + ": " + std::to_string(m_screenshot_count)
         + " | " + "Videos"_i18n + ": " + std::to_string(m_video_count));
 
     const auto storage = m_storage.Get() == StorageType_Nand ? "System memory"_i18n : "microSD card"_i18n;
-    SetTitleSubHeading(storage + " | " + utils::formatSizeStorage(m_total_size));
+    auto sub_heading = storage + " | " + utils::formatSizeStorage(m_total_size);
+
+    if (m_filter) {
+        sub_heading = GetGameName(m_filter) + " | " + sub_heading;
+    }
+
+    SetTitleSubHeading(sub_heading);
 }
 
 void Menu::Scan() {
+    // joins any scan still running, its results are about to be thrown away.
+    m_scan_thread.reset();
+
     FreeEntries();
 
     m_index = 0;
@@ -273,25 +298,123 @@ void Menu::Scan() {
     m_screenshot_count = 0;
     m_video_count = 0;
     m_total_size = 0;
+    SetIndex(0);
+
+    const auto storage = GetStorage();
+
+    m_scan_done = false;
+    m_scanning = true;
+
+    m_scan_thread = std::make_unique<utils::Async>([this, storage](){
+        ScanWorker(storage);
+    });
+
+    // no thread to be had, better to block for a moment than to sit on a
+    // loading screen that never goes away.
+    if (!m_scan_thread->IsRunning()) {
+        m_scan_thread.reset();
+        ScanWorker(storage);
+        FinishScan();
+    }
+}
+
+// runs on the scan thread: talks to the album service and builds the entries,
+// and touches nothing else the ui is using.
+void Menu::ScanWorker(CapsAlbumStorage storage) {
+    ScanResult result{};
 
     std::vector<CapsAlbumEntry> entries;
-    m_scan_rc = caps::GetEntries(GetStorage(), entries);
-    if (R_FAILED(m_scan_rc)) {
-        log_write("[ALBUM] failed to list the album: 0x%X\n", m_scan_rc);
-        m_list->SetYoff(0);
-        SetIndex(0);
-        return;
+    result.rc = caps::GetEntries(storage, entries);
+
+    if (R_FAILED(result.rc)) {
+        log_write("[ALBUM] failed to list the album: 0x%X\n", result.rc);
+    } else {
+        result.entries.reserve(entries.size());
+
+        for (const auto& entry : entries) {
+            Entry e{};
+            e.file_id = entry.file_id;
+            e.size = entry.size;
+            e.date = MakeDate(entry.file_id.datetime);
+            e.name = FormatDate(entry.file_id.datetime);
+            e.info = (e.IsVideo() ? "Video"_i18n : "Screenshot"_i18n) + " | " + utils::formatSizeStorage(e.size);
+
+            const auto app_id = e.file_id.application_id;
+            const auto game = std::ranges::find_if(result.games, [app_id](const auto& g){
+                return g.application_id == app_id;
+            });
+
+            if (game == result.games.end()) {
+                result.games.emplace_back(GameInfo{app_id, e.date, 1});
+            } else {
+                game->count++;
+                game->newest = std::max(game->newest, e.date);
+            }
+
+            result.entries.emplace_back(std::move(e));
+        }
+
+        // most recently captured first, the same as the album itself.
+        std::ranges::sort(result.games, [](const auto& a, const auto& b){
+            return a.newest > b.newest;
+        });
     }
 
-    m_entries.reserve(entries.size());
+    m_scan_data = std::move(result);
+    m_scan_done = true;
+}
 
-    for (const auto& entry : entries) {
-        Entry e{};
-        e.file_id = entry.file_id;
-        e.size = entry.size;
-        e.date = MakeDate(entry.file_id.datetime);
-        e.name = FormatDate(entry.file_id.datetime);
-        e.info = (e.IsVideo() ? "Video"_i18n : "Screenshot"_i18n) + " | " + utils::formatSizeStorage(e.size);
+void Menu::FinishScan() {
+    m_scanning = false;
+    m_scan_done = false;
+
+    m_entries = std::move(m_scan_data.entries);
+    m_games = std::move(m_scan_data.games);
+    m_scan_rc = m_scan_data.rc;
+    m_scan_data = {};
+
+    Sort();
+
+    // queued from here rather than the scan thread, the title cache is only
+    // ever fed from the ui thread elsewhere.
+    for (const auto& game : m_games) {
+        if (HasTitle(game.application_id)) {
+            title::PushAsync(game.application_id);
+        }
+    }
+
+    // the game that was filtered on may not be in this storage at all.
+    if (m_filter && !FindGame(m_filter)) {
+        m_filter = 0;
+    }
+
+    ApplyFilter();
+}
+
+void Menu::ApplyFilter() {
+    m_view.clear();
+    m_view.reserve(m_entries.size());
+
+    m_screenshot_count = 0;
+    m_video_count = 0;
+    m_total_size = 0;
+    m_selected_count = 0;
+
+    for (s64 i = 0; i < (s64)m_entries.size(); i++) {
+        auto& e = m_entries[i];
+
+        if (m_filter && e.file_id.application_id != m_filter) {
+            // it cannot be drawn, so it has no business holding a texture.
+            FreeEntry(e);
+            e.selected = false;
+            continue;
+        }
+
+        if (e.selected) {
+            m_selected_count++;
+        }
+
+        m_view.emplace_back(i);
 
         m_total_size += e.size;
         if (e.IsVideo()) {
@@ -299,13 +422,34 @@ void Menu::Scan() {
         } else {
             m_screenshot_count++;
         }
-
-        m_entries.emplace_back(std::move(e));
     }
 
-    Sort();
     m_list->SetYoff(0);
     SetIndex(0);
+}
+
+auto Menu::FindGame(u64 application_id) -> const GameInfo* {
+    const auto it = std::ranges::find_if(m_games, [application_id](const auto& g){
+        return g.application_id == application_id;
+    });
+
+    return it == m_games.end() ? nullptr : std::addressof(*it);
+}
+
+auto Menu::GetGameName(u64 application_id) -> std::string {
+    if (!HasTitle(application_id)) {
+        return "System"_i18n;
+    }
+
+    if (const auto result = title::GetAsync(application_id)) {
+        if (result->status == title::NacpLoadStatus::Loaded && result->lang.name[0]) {
+            return result->lang.name;
+        }
+    }
+
+    char buf[17];
+    std::snprintf(buf, sizeof(buf), "%016lX", application_id);
+    return buf;
 }
 
 void Menu::Sort() {
@@ -350,6 +494,7 @@ void Menu::FreeEntries() {
     }
 
     m_entries.clear();
+    m_view.clear();
     m_image_count = 0;
 }
 
@@ -362,9 +507,9 @@ void Menu::EvictImages(s64 first_drawn, s64 last_drawn) {
     const auto keep_first = first_drawn - IMAGE_KEEP_RANGE;
     const auto keep_last = last_drawn + IMAGE_KEEP_RANGE;
 
-    for (s64 i = 0; i < (s64)m_entries.size() && m_image_count > IMAGE_LIMIT; i++) {
+    for (s64 i = 0; i < (s64)m_view.size() && m_image_count > IMAGE_LIMIT; i++) {
         if (i < keep_first || i > keep_last) {
-            FreeEntry(m_entries[i]);
+            FreeEntry(m_entries[m_view[i]]);
         }
     }
 }
@@ -429,11 +574,11 @@ auto Menu::LoadImage(Entry& e) -> bool {
 }
 
 void Menu::OnEntrySelected() {
-    if (m_entries.empty()) {
+    if (m_view.empty()) {
         return;
     }
 
-    const auto& e = m_entries[m_index];
+    const auto& e = m_entries[m_view[m_index]];
     if (e.IsVideo()) {
         App::Notify("Video playback is not supported"_i18n);
         return;
@@ -461,13 +606,13 @@ auto Menu::GetSelected() -> std::vector<std::reference_wrapper<Entry>> {
     std::vector<std::reference_wrapper<Entry>> out;
 
     if (m_selected_count) {
-        for (auto& e : m_entries) {
-            if (e.selected) {
-                out.emplace_back(e);
+        for (const auto i : m_view) {
+            if (m_entries[i].selected) {
+                out.emplace_back(m_entries[i]);
             }
         }
-    } else if (!m_entries.empty()) {
-        out.emplace_back(m_entries[m_index]);
+    } else if (!m_view.empty()) {
+        out.emplace_back(m_entries[m_view[m_index]]);
     }
 
     return out;
@@ -503,10 +648,8 @@ void Menu::DeleteSelected() {
         return e.name.empty();
     });
 
-    m_selected_count = 0;
-
-    const s64 last = m_entries.empty() ? 0 : (s64)m_entries.size() - 1;
-    SetIndex(std::min(m_index, last));
+    // the indices in the view no longer mean anything.
+    ApplyFilter();
 
     App::PushErrorBox(rc, "Failed to delete one or more files"_i18n);
 }
@@ -539,13 +682,13 @@ void Menu::DisplayOptions() {
         options->Add<SidebarEntryArray>("Sort"_i18n, sort_items, [this](s64& index_out){
             m_sort.Set(index_out);
             Sort();
-            SetIndex(0);
+            ApplyFilter();
         }, m_sort.Get());
 
         options->Add<SidebarEntryArray>("Order"_i18n, order_items, [this](s64& index_out){
             m_order.Set(index_out);
             Sort();
-            SetIndex(0);
+            ApplyFilter();
         }, m_order.Get());
 
         options->Add<SidebarEntryArray>("Layout"_i18n, layout_items, [this](s64& index_out){
@@ -561,17 +704,47 @@ void Menu::DisplayOptions() {
         App::PopToMenu();
     }, m_storage.Get());
 
+    if (m_games.size() > 1) {
+        // the count each one holds goes next to the name, as the console does.
+        const auto with_count = [](const std::string& name, s64 count) {
+            return name + " (" + std::to_string(count) + ")";
+        };
+
+        SidebarEntryArray::Items game_items;
+        game_items.push_back(with_count("All"_i18n, m_entries.size()));
+
+        s64 game_index = 0;
+        for (const auto& game : m_games) {
+            if (m_filter && m_filter == game.application_id) {
+                game_index = game_items.size();
+            }
+
+            game_items.push_back(with_count(GetGameName(game.application_id), game.count));
+        }
+
+        options->Add<SidebarEntryArray>("Game"_i18n, game_items, [this](s64& index_out){
+            m_filter = index_out ? m_games[index_out - 1].application_id : 0;
+            ClearSelection();
+            ApplyFilter();
+            App::PopToMenu();
+        }, game_index,
+            "Shows only the captures taken in one game."_i18n
+        );
+    }
+
     options->Add<SidebarEntryCallback>("Refresh"_i18n, [this](){
         m_dirty = true;
         App::PopToMenu();
     }, "Looks for captures taken, or deleted, since this menu was opened."_i18n);
 
-    if (!m_entries.empty()) {
+    if (!m_view.empty()) {
         options->Add<SidebarEntryCallback>("Browse from phone"_i18n, [this](){
+            // what is on show is what gets served.
             albumsrv::Items items;
-            items.reserve(m_entries.size());
+            items.reserve(m_view.size());
 
-            for (const auto& e : m_entries) {
+            for (const auto i : m_view) {
+                const auto& e = m_entries[i];
                 items.emplace_back(albumsrv::Item{e.file_id, e.name, e.title, MakeFileName(e.file_id), e.size, e.IsVideo()});
             }
 

@@ -5,7 +5,9 @@
 #include "title_info.hpp"
 #include "ui/list.hpp"
 #include "ui/menus/grid_menu_base.hpp"
+#include "utils/thread.hpp"
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -67,9 +69,33 @@ struct Menu final : grid::Menu {
     void Draw(NVGcontext* vg, Theme* theme) override;
 
 private:
+    // a game with captures in the album, for the filter list.
+    struct GameInfo {
+        u64 application_id{};
+        // the most recent capture taken in it, which is the order the
+        // console's own album lists games in.
+        u64 newest{};
+        s64 count{};
+    };
+
+    struct ScanResult {
+        std::vector<Entry> entries{};
+        std::vector<GameInfo> games{};
+        Result rc{};
+    };
+
+private:
     void SetIndex(s64 index);
     void Scan();
+    // the listing runs off the ui thread, the album service can take a moment
+    // over it and the menu should not be stuck behind that.
+    void ScanWorker(CapsAlbumStorage storage);
+    void FinishScan();
     void Sort();
+    // rebuilds the list of entries on show, and the counts that go with it.
+    void ApplyFilter();
+    auto GetGameName(u64 application_id) -> std::string;
+    auto FindGame(u64 application_id) -> const GameInfo*;
     void OnLayoutChange();
     void DisplayOptions();
 
@@ -94,6 +120,14 @@ private:
     static constexpr inline const char* INI_SECTION = "album";
 
     std::vector<Entry> m_entries{};
+    // indices into m_entries, in the order they are shown. everything the ui
+    // touches goes through this, so that filtering by game is just a rebuild.
+    std::vector<s64> m_view{};
+    // every game in the album, most recently captured first.
+    std::vector<GameInfo> m_games{};
+    // 0 shows everything.
+    u64 m_filter{};
+
     s64 m_index{};
     s64 m_selected_count{};
     s64 m_image_count{};
@@ -107,6 +141,12 @@ private:
     Result m_scan_rc{};
     bool m_caps_init{};
     bool m_dirty{};
+
+    // filled in by the scan thread, only read once m_scan_done is set.
+    ScanResult m_scan_data{};
+    std::unique_ptr<utils::Async> m_scan_thread{};
+    std::atomic_bool m_scan_done{};
+    bool m_scanning{};
 
     option::OptionLong m_sort{INI_SECTION, "sort", SortType::SortType_Date};
     option::OptionLong m_order{INI_SECTION, "order", OrderType::OrderType_Descending};
