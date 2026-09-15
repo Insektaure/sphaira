@@ -614,6 +614,8 @@
   "Something else may already be using the port.": "Something else may already be using the port.",
   "Scan to open the album": "Scan to open the album",
   "Too many wrong PINs, close and re-open to try again": "Too many wrong PINs, close and re-open to try again",
+  "Album updated": "Album updated",
+  "Looks for captures taken, or deleted, since this menu was opened.": "Looks for captures taken, or deleted, since this menu was opened.",
   "Video Capture": "Video Capture",
   "Profile Selection": "Profile Selection",
   "Create Forwarder": "Create Forwarder",

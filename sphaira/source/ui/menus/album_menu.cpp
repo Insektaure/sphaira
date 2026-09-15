@@ -15,11 +15,14 @@
 #include "utils/utils.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 
 namespace sphaira::ui::menu::album {
 namespace {
+
+std::atomic_bool g_change_signalled{};
 
 // an album can hold thousands of captures and every decoded thumbnail costs
 // vram, so only the ones around what is on screen are kept.
@@ -86,6 +89,10 @@ auto FitImage(const Vec4& v, float w, float h) -> Vec4 {
 
 } // namespace
 
+void SignalChange() {
+    g_change_signalled = true;
+}
+
 Menu::Menu(u32 flags) : grid::Menu{"Album"_i18n, flags} {
     this->SetActions(
         std::make_pair(Button::L3, Action{[this](){
@@ -129,6 +136,9 @@ Menu::Menu(u32 flags) : grid::Menu{"Album"_i18n, flags} {
     OnLayoutChange();
     title::Init();
 
+    // anything signalled before the menu opened is already in the scan below.
+    g_change_signalled = false;
+
     m_scan_rc = caps::Init();
     if (R_SUCCEEDED(m_scan_rc)) {
         m_caps_init = true;
@@ -150,6 +160,18 @@ Menu::~Menu() {
 }
 
 void Menu::Update(Controller* controller, TouchInfo* touch) {
+    if (g_change_signalled.exchange(false)) {
+        m_dirty = true;
+    }
+
+    // the listing is two ipc calls, so there is nothing to be gained by
+    // holding on to a stale one.
+    if (m_dirty && m_caps_init) {
+        m_dirty = false;
+        Scan();
+        App::Notify("Album updated"_i18n);
+    }
+
     if (R_FAILED(m_scan_rc)) {
         App::PushErrorBox(m_scan_rc, "Failed to open the album"_i18n);
         m_scan_rc = 0;
@@ -538,6 +560,11 @@ void Menu::DisplayOptions() {
         Scan();
         App::PopToMenu();
     }, m_storage.Get());
+
+    options->Add<SidebarEntryCallback>("Refresh"_i18n, [this](){
+        m_dirty = true;
+        App::PopToMenu();
+    }, "Looks for captures taken, or deleted, since this menu was opened."_i18n);
 
     if (!m_entries.empty()) {
         options->Add<SidebarEntryCallback>("Browse from phone"_i18n, [this](){

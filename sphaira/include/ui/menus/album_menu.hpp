@@ -54,6 +54,10 @@ enum StorageType {
 
 using LayoutType = grid::LayoutType;
 
+// tells an open album menu that the album has changed, ie. a capture was
+// taken whilst sphaira was running. safe to call from any thread.
+void SignalChange();
+
 struct Menu final : grid::Menu {
     Menu(u32 flags);
     ~Menu();
@@ -102,6 +106,7 @@ private:
     // widget stack yet whilst it is being constructed.
     Result m_scan_rc{};
     bool m_caps_init{};
+    bool m_dirty{};
 
     option::OptionLong m_sort{INI_SECTION, "sort", SortType::SortType_Date};
     option::OptionLong m_order{INI_SECTION, "order", OrderType::OrderType_Descending};
