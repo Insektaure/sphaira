@@ -70,7 +70,8 @@ private:
     void HandleLogin(int fd);
     void HandleAuth(int fd, std::string_view pin);
     void HandleThumbnail(int fd, const Item& item);
-    void HandleFile(int fd, const Item& item);
+    // attachment asks the browser to save rather than display it.
+    void HandleFile(int fd, const Item& item, bool attachment);
     void SendMovie(int fd, caps::MovieStream& stream, u64 size);
 
     auto BuildGalleryPage(size_t page) const -> std::string;

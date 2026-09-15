@@ -281,13 +281,18 @@ header { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline;
 h1 { font-size:18px; margin:0; }
 .muted { color:var(--muted); font-size:13px; }
 .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
-.t { display:block; position:relative; background:var(--card); border:1px solid var(--line);
-  border-radius:10px; overflow:hidden; text-decoration:none; color:inherit; }
+.t { background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.t .p { display:block; position:relative; }
 .t img { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--line); }
 .t .v { position:absolute; top:6px; right:8px; padding:1px 7px; border-radius:20px; font-size:12px;
   background:rgba(0,0,0,.65); color:#fff; }
-.t b { display:block; padding:8px 10px 0; font-size:13px; font-weight:600; }
-.t i { display:block; padding:2px 10px 10px; font-size:12px; color:var(--muted); font-style:normal; }
+.m { display:flex; align-items:center; gap:8px; padding:8px 10px 10px; }
+.m span { flex:1; min-width:0; }
+.m b { display:block; font-size:13px; font-weight:600; }
+.m i { display:block; font-size:12px; color:var(--muted); font-style:normal;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dl { flex:none; padding:6px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px;
+  text-decoration:none; color:inherit; background:var(--bg); }
 nav { display:flex; gap:10px; justify-content:center; margin-top:20px; }
 nav a, button { background:var(--card); border:1px solid var(--line); border-radius:8px;
   padding:10px 16px; color:inherit; text-decoration:none; font-size:15px; }
@@ -296,6 +301,23 @@ input { width:100%; padding:12px; font-size:22px; text-align:center; letter-spac
   border:1px solid var(--line); border-radius:8px; background:var(--card); color:inherit; }
 button { margin-top:12px; width:100%; }
 )CSS";
+
+constexpr const char* PAGE_SCRIPT = R"JS(
+(function () {
+  if (!navigator.canShare) return;
+  document.querySelectorAll("a.dl").forEach(function (a) {
+    a.textContent = "Share";
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      fetch(a.href).then(function (r) { return r.blob(); }).then(function (blob) {
+        var file = new File([blob], a.getAttribute("download"), { type: blob.type });
+        if (!navigator.canShare({ files: [file] })) { location.href = a.href; return; }
+        navigator.share({ files: [file] }).catch(function () {});
+      }).catch(function () { location.href = a.href; });
+    });
+  });
+})();
+)JS";
 
 } // namespace
 
@@ -484,7 +506,10 @@ void Server::HandleConnection(int fd) {
         return;
     }
 
-    const auto serve_item = [this, fd](std::string_view index_str, bool thumbnail) {
+    // ?dl=1 is what the save button asks for.
+    const auto attachment = FindParam(query, "dl", '&') == "1";
+
+    const auto serve_item = [this, fd, attachment](std::string_view index_str, bool thumbnail) {
         size_t index{};
         if (!ParseNumber(index_str, index) || index >= m_items.size()) {
             const auto head_str = BuildHeader("404 Not Found", "text/plain", 0, "");
@@ -495,7 +520,7 @@ void Server::HandleConnection(int fd) {
         if (thumbnail) {
             HandleThumbnail(fd, m_items[index]);
         } else {
-            HandleFile(fd, m_items[index]);
+            HandleFile(fd, m_items[index], attachment);
         }
     };
 
@@ -593,11 +618,9 @@ auto Server::BuildGalleryPage(size_t page) const -> std::string {
         const auto& item = m_items[i];
         const auto index = std::to_string(i);
 
-        out += "<a class=\"t\" href=\"/file/";
+        out += "<div class=\"t\"><a class=\"p\" href=\"/file/";
         out += index;
-        out += "\">";
-
-        out += "<img loading=\"lazy\" src=\"/thumb/";
+        out += "\"><img loading=\"lazy\" src=\"/thumb/";
         out += index;
         out += "\" alt=\"\">";
 
@@ -605,7 +628,7 @@ auto Server::BuildGalleryPage(size_t page) const -> std::string {
             out += "<span class=\"v\">&#9654;</span>";
         }
 
-        out += "<b>";
+        out += "</a><div class=\"m\"><span><b>";
         out += Escape(item.name);
         out += "</b><i>";
 
@@ -615,7 +638,11 @@ auto Server::BuildGalleryPage(size_t page) const -> std::string {
         }
 
         out += utils::formatSizeStorage(item.size);
-        out += "</i></a>";
+        out += "</i></span><a class=\"dl\" href=\"/file/";
+        out += index;
+        out += "?dl=1\" download=\"";
+        out += Escape(item.file);
+        out += "\">Save</a></div></div>";
     }
 
     out += "</div><nav>";
@@ -632,7 +659,9 @@ auto Server::BuildGalleryPage(size_t page) const -> std::string {
         out += "\">Older &rarr;</a>";
     }
 
-    out += "</nav></body></html>";
+    out += "</nav><script>";
+    out += PAGE_SCRIPT;
+    out += "</script></body></html>";
     return out;
 }
 
@@ -652,14 +681,16 @@ void Server::HandleThumbnail(int fd, const Item& item) {
     }
 }
 
-void Server::HandleFile(int fd, const Item& item) {
+void Server::HandleFile(int fd, const Item& item, bool attachment) {
     // the name ends up inside a quoted header value.
     std::string name;
     for (const auto c : item.file) {
         name += (c == '"' || c == '\\' || (unsigned char)c < 0x20) ? '_' : c;
     }
 
-    std::string extra = "\r\nContent-Disposition: inline; filename=\"";
+    std::string extra = "\r\nContent-Disposition: ";
+    extra += attachment ? "attachment" : "inline";
+    extra += "; filename=\"";
     extra += name;
     extra += "\"";
 
