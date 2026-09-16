@@ -321,9 +321,10 @@ constexpr const char* PAGE_SCRIPT = R"JS(
 
 } // namespace
 
-Server::Server(Items&& items, u16 port)
+Server::Server(Items&& items, u16 port, bool require_pin)
 : m_items{std::move(items)}
-, m_port{port} {
+, m_port{port}
+, m_require_pin{require_pin} {
     m_pin = MakePin();
     m_token = MakeToken();
 
@@ -488,7 +489,7 @@ void Server::HandleConnection(int fd) {
     }
 
     const auto cookie = FindParam(FindHeader(head, "Cookie"), COOKIE_NAME, ';');
-    if (!SecureEqual(cookie, m_token)) {
+    if (m_require_pin && !SecureEqual(cookie, m_token)) {
         // the link in the QR code carries the pin, so that scanning it is all
         // a phone has to do. the cookie is set and the pin bounced out of the
         // address bar.

@@ -1234,5 +1234,14 @@
   "Homebrew search path removed.": "Homebrew search path removed.",
   "Failed to add Homebrew search path": "Failed to add Homebrew search path",
   "Failed to remove Homebrew search path": "Failed to remove Homebrew search path",
-  "Screen Off": "Screen Off"
+  "Screen Off": "Screen Off",
+  "Require PIN": "Require PIN",
+  "album_web_pin_info": [
+    "If enabled, browsing the album from a phone asks for the PIN shown on the console.\n",
+    "Leaving this off means anyone on the same network can open the album whilst it is being shared."
+  ],
+  "Album share PIN": "Album share PIN",
+  "Serves the album on this port.": "Serves the album on this port.",
+  "Browse": "Browse",
+  "Starts the server and shows the address and the QR code.": "Starts the server and shows the address and the QR code."
 }

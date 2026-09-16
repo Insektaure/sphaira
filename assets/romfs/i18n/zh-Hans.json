@@ -1168,5 +1168,14 @@
   "Album updated": "相册已更新",
   "Game": "游戏",
   "Shows only the captures taken in one game.": "仅显示在某个游戏中拍摄的内容。",
-  "Looks for captures taken, or deleted, since this menu was opened.": "查找自打开此菜单以来拍摄或删除的内容。"
+  "Looks for captures taken, or deleted, since this menu was opened.": "查找自打开此菜单以来拍摄或删除的内容。",
+  "Require PIN": "需要 PIN 码",
+  "album_web_pin_info": [
+    "启用后，用手机浏览相册时需要输入主机上显示的 PIN 码。\n",
+    "保持关闭时，共享期间同一网络中的任何人都可以打开相册。"
+  ],
+  "Album share PIN": "相册共享 PIN 码",
+  "Serves the album on this port.": "在此端口上共享相册。",
+  "Browse": "浏览",
+  "Starts the server and shows the address and the QR code.": "启动服务器并显示地址和二维码。"
 }

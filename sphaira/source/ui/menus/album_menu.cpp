@@ -591,7 +591,43 @@ void Menu::OnEntrySelected() {
         return;
     }
 
-    App::Push<imageview::Menu>(buf, ImageFlag_JPEG);
+    App::Push<imageview::Menu>(buf, ImageFlag_JPEG, [this](int direction, std::vector<u8>& out){
+        return ViewNeighbour(direction, out);
+    });
+}
+
+auto Menu::ViewNeighbour(int direction, std::vector<u8>& out) -> bool {
+    const auto count = (s64)m_view.size();
+
+    // clips have nothing to show, so step over them.
+    auto index = m_index;
+    do {
+        index += direction;
+    } while (index >= 0 && index < count && m_entries[m_view[index]].IsVideo());
+
+    if (index < 0 || index >= count) {
+        return false;
+    }
+
+    const auto& e = m_entries[m_view[index]];
+    if (R_FAILED(caps::LoadFile(e.file_id, out)) || out.empty()) {
+        return false;
+    }
+
+    // move the cursor a step at a time, so that the grid scrolls with it and
+    // the right capture is under the cursor when the viewer is closed.
+    while (m_index != index) {
+        const auto moved = index > m_index
+            ? m_list->ScrollDown(m_index, 1, count)
+            : m_list->ScrollUp(m_index, 1, count);
+
+        if (!moved) {
+            break;
+        }
+    }
+
+    SetIndex(m_index);
+    return true;
 }
 
 void Menu::ClearSelection() {
@@ -737,22 +773,47 @@ void Menu::DisplayOptions() {
         App::PopToMenu();
     }, "Looks for captures taken, or deleted, since this menu was opened."_i18n);
 
-    if (!m_view.empty()) {
-        options->Add<SidebarEntryCallback>("Browse from phone"_i18n, [this](){
-            // what is on show is what gets served.
-            albumsrv::Items items;
-            items.reserve(m_view.size());
+    options->Add<SidebarEntryCallback>("Browse from phone"_i18n, [this](){
+        auto options = std::make_unique<Sidebar>("Browse from phone"_i18n, Sidebar::Side::RIGHT);
+        ON_SCOPE_EXIT(App::Push(std::move(options)));
 
-            for (const auto i : m_view) {
-                const auto& e = m_entries[i];
-                items.emplace_back(albumsrv::Item{e.file_id, e.name, e.title, MakeFileName(e.file_id), e.size, e.IsVideo()});
+        options->Add<SidebarEntryTextInput>(
+            "Port"_i18n, m_web_port.Get(), "", "", 1, 5,
+            "Serves the album on this port."_i18n,
+            [this](auto* input){
+                const auto port = std::clamp<s64>(input->GetNumValue(), 1, 65535);
+                m_web_port.Set(port);
+                input->SetNumValue(port);
             }
-
-            App::Push<ShareMenu>(std::move(items), (u16)m_web_port.Get());
-        }, true,
-            "Serves the album over the network, so that it can be browsed from a phone."_i18n
         );
 
+        options->Add<SidebarEntryBool>("Require PIN"_i18n, App::GetApp()->m_album_web_pin,
+            i18n::get("album_web_pin_info",
+                "If enabled, browsing the album from a phone asks for the PIN shown on the console.\n\n"
+                "Leaving this off means anyone on the same network can open the album whilst it is "
+                "being shared."
+            )
+        );
+
+        if (!m_view.empty()) {
+            options->Add<SidebarEntryCallback>("Browse"_i18n, [this](){
+                // what is on show is what gets served.
+                albumsrv::Items items;
+                items.reserve(m_view.size());
+
+                for (const auto i : m_view) {
+                    const auto& e = m_entries[i];
+                    items.emplace_back(albumsrv::Item{e.file_id, e.name, e.title, MakeFileName(e.file_id), e.size, e.IsVideo()});
+                }
+
+                App::Push<ShareMenu>(std::move(items), (u16)m_web_port.Get(), App::GetApp()->m_album_web_pin.Get());
+            }, true,
+                "Starts the server and shows the address and the QR code."_i18n
+            );
+        }
+    }, "Serves the album over the network, so that it can be browsed from a phone."_i18n);
+
+    if (!m_view.empty()) {
         options->Add<SidebarEntryCallback>("Delete"_i18n, [this](){
             const auto count = m_selected_count ? m_selected_count : 1;
 

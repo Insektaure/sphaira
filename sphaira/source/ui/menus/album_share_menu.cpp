@@ -20,7 +20,7 @@ constexpr float QR_MAX_SIZE = 300;
 
 } // namespace
 
-ShareMenu::ShareMenu(albumsrv::Items&& items, u16 port)
+ShareMenu::ShareMenu(albumsrv::Items&& items, u16 port, bool require_pin)
 : MenuBase{"Album"_i18n, MenuFlag_None} {
     this->SetAction(Button::B, Action{"Back"_i18n, [this](){
         SetPop();
@@ -29,7 +29,7 @@ ShareMenu::ShareMenu(albumsrv::Items&& items, u16 port)
     SetTitleSubHeading("Browse from phone"_i18n);
     SetSubHeading("The album is only shared whilst this screen is open."_i18n);
 
-    m_server = std::make_unique<albumsrv::Server>(std::move(items), port);
+    m_server = std::make_unique<albumsrv::Server>(std::move(items), port, require_pin);
     SetAddress(GetPolledData().ip);
 }
 
@@ -60,9 +60,9 @@ void ShareMenu::SetAddress(u32 ip) {
         ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF, (unsigned)m_server->GetPort());
     m_url = buf;
 
-    // the code carries the pin as well as the address, so that scanning it is
+    // where a pin is asked for, the code carries it too, so that scanning is
     // all that a phone has to do.
-    const auto link = m_url + "/?p=" + m_server->GetPin();
+    const auto link = m_server->RequiresPin() ? m_url + "/?p=" + m_server->GetPin() : m_url;
     if (!m_qr.Encode(link)) {
         log_write("[ALBUM] failed to encode qr code for: %s\n", link.c_str());
     }
@@ -91,9 +91,11 @@ void ShareMenu::Draw(NVGcontext* vg, Theme* theme) {
     line(20.f, ThemeEntryID_TEXT_INFO, "Open this address on a phone or PC"_i18n.c_str());
     line(30.f, ThemeEntryID_TEXT_SELECTED, m_url.c_str());
 
-    y += 16.f;
-    line(20.f, ThemeEntryID_TEXT_INFO, "PIN"_i18n.c_str());
-    line(30.f, ThemeEntryID_TEXT_SELECTED, m_server->GetPin().c_str());
+    if (m_server->RequiresPin()) {
+        y += 16.f;
+        line(20.f, ThemeEntryID_TEXT_INFO, "PIN"_i18n.c_str());
+        line(30.f, ThemeEntryID_TEXT_SELECTED, m_server->GetPin().c_str());
+    }
 
     y += 16.f;
     const auto requests = m_server->GetRequestCount();
@@ -105,7 +107,7 @@ void ShareMenu::Draw(NVGcontext* vg, Theme* theme) {
         line(20.f, ThemeEntryID_TEXT_INFO, "Waiting for a connection"_i18n.c_str());
     }
 
-    if (m_server->IsLockedOut()) {
+    if (m_server->RequiresPin() && m_server->IsLockedOut()) {
         line(20.f, ThemeEntryID_ERROR, "Too many wrong PINs, close and re-open to try again"_i18n.c_str());
     }
 

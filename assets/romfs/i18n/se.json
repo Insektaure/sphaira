@@ -1224,5 +1224,14 @@
   "Album updated": "Albumet uppdaterat",
   "Game": "Spel",
   "Shows only the captures taken in one game.": "Visar bara bilder tagna i ett spel.",
-  "Looks for captures taken, or deleted, since this menu was opened.": "Söker efter bilder som tagits eller raderats sedan menyn öppnades."
+  "Looks for captures taken, or deleted, since this menu was opened.": "Söker efter bilder som tagits eller raderats sedan menyn öppnades.",
+  "Require PIN": "Kräv PIN-kod",
+  "album_web_pin_info": [
+    "Om detta är på frågar albumet efter PIN-koden som visas på konsolen när det bläddras från en telefon.\n",
+    "Om det är av kan vem som helst i samma nätverk öppna albumet medan det delas."
+  ],
+  "Album share PIN": "PIN-kod för albumdelning",
+  "Serves the album on this port.": "Delar albumet på den här porten.",
+  "Browse": "Bläddra",
+  "Starts the server and shows the address and the QR code.": "Startar servern och visar adressen och QR-koden."
 }

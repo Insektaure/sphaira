@@ -1222,5 +1222,14 @@
   "Album updated": "Album bijgewerkt",
   "Game": "Game",
   "Shows only the captures taken in one game.": "Toont alleen de opnames uit één game.",
-  "Looks for captures taken, or deleted, since this menu was opened.": "Zoekt naar opnames die zijn gemaakt of verwijderd sinds dit menu is geopend."
+  "Looks for captures taken, or deleted, since this menu was opened.": "Zoekt naar opnames die zijn gemaakt of verwijderd sinds dit menu is geopend.",
+  "Require PIN": "Pincode vereisen",
+  "album_web_pin_info": [
+    "Als dit aanstaat, vraagt het bekijken van het album op een telefoon om de pincode die op de console staat.\n",
+    "Staat dit uit, dan kan iedereen in hetzelfde netwerk het album openen zolang het gedeeld wordt."
+  ],
+  "Album share PIN": "Pincode voor albumdelen",
+  "Serves the album on this port.": "Deelt het album op deze poort.",
+  "Browse": "Bladeren",
+  "Starts the server and shows the address and the QR code.": "Start de server en toont het adres en de QR-code."
 }

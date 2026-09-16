@@ -1169,5 +1169,14 @@
   "Album updated": "相簿已更新",
   "Game": "遊戲",
   "Shows only the captures taken in one game.": "僅顯示在某個遊戲中拍攝的項目。",
-  "Looks for captures taken, or deleted, since this menu was opened.": "尋找自開啟此選單以來拍攝或刪除的項目。"
+  "Looks for captures taken, or deleted, since this menu was opened.": "尋找自開啟此選單以來拍攝或刪除的項目。",
+  "Require PIN": "需要 PIN 碼",
+  "album_web_pin_info": [
+    "啟用後，用手機瀏覽相簿時需要輸入主機上顯示的 PIN 碼。\n",
+    "保持關閉時，分享期間同一網路中的任何人都可以開啟相簿。"
+  ],
+  "Album share PIN": "相簿分享 PIN 碼",
+  "Serves the album on this port.": "在此連接埠上分享相簿。",
+  "Browse": "瀏覽",
+  "Starts the server and shows the address and the QR code.": "啟動伺服器並顯示位址和 QR 碼。"
 }

@@ -1224,5 +1224,14 @@
   "Album updated": "Đã cập nhật album",
   "Game": "Trò chơi",
   "Shows only the captures taken in one game.": "Chỉ hiện các mục được chụp trong một trò chơi.",
-  "Looks for captures taken, or deleted, since this menu was opened.": "Tìm các mục đã chụp hoặc xoá kể từ khi mở menu này."
+  "Looks for captures taken, or deleted, since this menu was opened.": "Tìm các mục đã chụp hoặc xoá kể từ khi mở menu này.",
+  "Require PIN": "Yêu cầu mã PIN",
+  "album_web_pin_info": [
+    "Nếu bật, xem album từ điện thoại sẽ hỏi mã PIN hiển thị trên máy.\n",
+    "Nếu tắt, bất kỳ ai trong cùng mạng đều có thể mở album khi đang chia sẻ."
+  ],
+  "Album share PIN": "Mã PIN chia sẻ album",
+  "Serves the album on this port.": "Chia sẻ album trên cổng này.",
+  "Browse": "Duyệt",
+  "Starts the server and shows the address and the QR code.": "Khởi động máy chủ và hiển thị địa chỉ cùng mã QR."
 }

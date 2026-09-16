@@ -12,7 +12,7 @@ namespace sphaira::ui::menu::album {
 // serves the album over http for as long as this screen is open, and shows the
 // address, the pin, and a QR code that carries both.
 struct ShareMenu final : MenuBase {
-    ShareMenu(albumsrv::Items&& items, u16 port);
+    ShareMenu(albumsrv::Items&& items, u16 port, bool require_pin);
     ~ShareMenu();
 
     auto GetShortTitle() const -> const char* override { return "Album"; };

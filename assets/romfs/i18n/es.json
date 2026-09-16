@@ -1225,5 +1225,14 @@
   "Album updated": "Álbum actualizado",
   "Game": "Juego",
   "Shows only the captures taken in one game.": "Muestra solo las capturas hechas en un juego.",
-  "Looks for captures taken, or deleted, since this menu was opened.": "Busca capturas hechas o eliminadas desde que se abrió este menú."
+  "Looks for captures taken, or deleted, since this menu was opened.": "Busca capturas hechas o eliminadas desde que se abrió este menú.",
+  "Require PIN": "Solicitar PIN",
+  "album_web_pin_info": [
+    "Si se activa, explorar el álbum desde el móvil pedirá el PIN que se muestra en la consola.\n",
+    "Si se deja desactivado, cualquiera en la misma red puede abrir el álbum mientras se comparte."
+  ],
+  "Album share PIN": "PIN para compartir el álbum",
+  "Serves the album on this port.": "Comparte el álbum en este puerto.",
+  "Browse": "Explorar",
+  "Starts the server and shows the address and the QR code.": "Inicia el servidor y muestra la dirección y el código QR."
 }

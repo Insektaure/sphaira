@@ -1224,5 +1224,14 @@
   "Album updated": "Альбом оновлено",
   "Game": "Гра",
   "Shows only the captures taken in one game.": "Показує лише знімки з однієї гри.",
-  "Looks for captures taken, or deleted, since this menu was opened.": "Шукає знімки, зроблені або видалені з моменту відкриття меню."
+  "Looks for captures taken, or deleted, since this menu was opened.": "Шукає знімки, зроблені або видалені з моменту відкриття меню.",
+  "Require PIN": "Запитувати PIN-код",
+  "album_web_pin_info": [
+    "Якщо увімкнено, для перегляду альбому з телефона потрібно ввести PIN-код, показаний на консолі.\n",
+    "Якщо вимкнено, альбом зможе відкрити будь-хто в тій самій мережі, поки він у спільному доступі."
+  ],
+  "Album share PIN": "PIN-код для доступу до альбому",
+  "Serves the album on this port.": "Відкриває доступ до альбому на цьому порту.",
+  "Browse": "Огляд",
+  "Starts the server and shows the address and the QR code.": "Запускає сервер і показує адресу та QR-код."
 }

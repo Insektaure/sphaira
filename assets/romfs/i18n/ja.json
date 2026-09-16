@@ -1180,5 +1180,14 @@
   "Album updated": "アルバムを更新しました",
   "Game": "ソフト",
   "Shows only the captures taken in one game.": "1つのソフトで撮影したデータだけを表示します。",
-  "Looks for captures taken, or deleted, since this menu was opened.": "このメニューを開いてから撮影・削除されたデータを確認します。"
+  "Looks for captures taken, or deleted, since this menu was opened.": "このメニューを開いてから撮影・削除されたデータを確認します。",
+  "Require PIN": "PINコードを要求",
+  "album_web_pin_info": [
+    "有効にすると、スマホからアルバムを見るときに本体に表示されたPINコードの入力を求めます。\n",
+    "無効のままだと、共有している間は同じネットワーク上の誰でもアルバムを開けます。"
+  ],
+  "Album share PIN": "アルバム共有のPINコード",
+  "Serves the album on this port.": "このポートでアルバムを共有します。",
+  "Browse": "見る",
+  "Starts the server and shows the address and the QR code.": "サーバーを起動し、アドレスとQRコードを表示します。"
 }

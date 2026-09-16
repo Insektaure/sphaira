@@ -108,6 +108,8 @@ private:
     void LoadTitle(Entry& e);
 
     void OnEntrySelected();
+    // hands the viewer the capture before or after the one on screen.
+    auto ViewNeighbour(int direction, std::vector<u8>& out) -> bool;
     void DeleteSelected();
     void ClearSelection();
     auto GetSelected() -> std::vector<std::reference_wrapper<Entry>>;

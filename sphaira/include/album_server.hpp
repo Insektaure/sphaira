@@ -26,7 +26,7 @@ using Items = std::vector<Item>;
 
 // serves the album over http, read only, for as long as it is alive.
 struct Server final {
-    Server(Items&& items, u16 port);
+    Server(Items&& items, u16 port, bool require_pin);
     ~Server();
 
     Server(const Server&) = delete;
@@ -38,6 +38,11 @@ struct Server final {
 
     auto GetPin() const -> const std::string& {
         return m_pin;
+    }
+
+    // when off, anyone who can reach the port can browse the album.
+    auto RequiresPin() const -> bool {
+        return m_require_pin;
     }
 
     // set once the socket is listening.
@@ -57,7 +62,7 @@ struct Server final {
     // set once too many pins have been guessed, the screen has to be closed
     // and re-opened (with a new pin) to try again.
     auto IsLockedOut() const -> bool {
-        return m_auth_failures >= MAX_AUTH_FAILURES;
+        return m_require_pin && m_auth_failures >= MAX_AUTH_FAILURES;
     }
 
 private:
@@ -79,6 +84,7 @@ private:
 private:
     const Items m_items;
     const u16 m_port;
+    const bool m_require_pin;
 
     // shown on screen only, exchanged by a client for the session token.
     std::string m_pin{};
