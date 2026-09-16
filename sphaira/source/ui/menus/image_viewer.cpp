@@ -138,8 +138,10 @@ void Menu::Update(Controller* controller, TouchInfo* touch) {
     if (m_navigate) {
         const auto can_pan = GetW() > SCREEN_WIDTH;
 
-        const auto next = controller->GotDown(Button::RIGHT) || (!can_pan && controller->GotDown(Button::LS_RIGHT));
-        const auto prev = controller->GotDown(Button::LEFT) || (!can_pan && controller->GotDown(Button::LS_LEFT));
+        // Button::LEFT / RIGHT are AnyLeft / AnyRight, which the stick sets as
+        // well, so the dpad has to be named outright here.
+        const auto next = controller->GotDown(Button::DPAD_RIGHT) || (!can_pan && controller->GotDown(Button::LS_RIGHT));
+        const auto prev = controller->GotDown(Button::DPAD_LEFT) || (!can_pan && controller->GotDown(Button::LS_LEFT));
 
         if (next) {
             Navigate(+1);
