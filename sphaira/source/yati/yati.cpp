@@ -18,6 +18,7 @@
 
 #include "ui/progress_box.hpp"
 #include "ui/menus/game_menu.hpp"
+#include "ui/menus/ownfoil.hpp"
 
 #include "app.hpp"
 #include "i18n.hpp"
@@ -899,6 +900,7 @@ Yati::~Yati() {
 
     // force update the game menu, as we may have installed a game.
     ui::menu::game::SignalChange();
+    ui::menu::ownfoil::SignalInstalled();
 }
 
 Result Yati::Setup(const ConfigOverride& override) {

@@ -1024,7 +1024,7 @@ void TitleMenu::Install() {
     App::PopToMenu();
     App::Push<ProgressBox>(0, "Installing "_i18n, GetName(), [config = m_config, targets](ProgressBox* pbox) -> Result {
         for (const auto& target : targets) {
-            yati::source::Http source{target.download.url, config.user, config.pass};
+            yati::source::Http source{target.download.url, config.user, config.pass, pbox->GetToken()};
 
             yati::ConfigOverride config_override{};
             config_override.title_ids = target.ids;
@@ -1041,9 +1041,6 @@ void TitleMenu::Install() {
             App::Notify(i18n::Reorder("Installed ", GetName()));
         }
 
-        // even a failed install can have put some of it on the console, so the
-        // page and the catalog behind it ask the console again either way.
-        SignalInstalled();
         const auto token = m_stop.get_token();
         m_console = std::make_unique<utils::Async>([this, token](){
             LoadInstalled(token);

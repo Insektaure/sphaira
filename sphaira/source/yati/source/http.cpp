@@ -12,9 +12,7 @@ namespace {
 using devoptab::common::PushThreadData;
 
 constexpr long CONNECT_TIMEOUT_MS = 10000;
-// a read blocked on a transfer that has stopped sending can't be woken by
-// anything else, so a transfer silent for this long is dropped and started
-// again, which costs one request.
+// retry transfers that stop sending data for this long.
 constexpr long LOW_SPEED_TIME_S = 15;
 // a transfer that ends early is started again where it stopped, for as long as
 // this since anything last arrived: a console that drops off its network needs
@@ -24,8 +22,8 @@ constexpr u64 RETRY_WAIT_NS = 2'000'000'000ULL;
 
 } // namespace
 
-Http::Http(const std::string& url, const std::string& user, const std::string& pass)
-: m_url{url}, m_user{user}, m_pass{pass} {
+Http::Http(const std::string& url, const std::string& user, const std::string& pass, std::stop_token token)
+: m_url{url}, m_user{user}, m_pass{pass}, m_token{token} {
     m_curl = curl_easy_init();
     if (!m_curl) {
         m_open_result = Result_CurlFailedEasyInit;
@@ -65,7 +63,7 @@ Result Http::Start(s64 off) {
     std::snprintf(range, sizeof(range), "%ld-", off);
     curl_easy_setopt(m_curl, CURLOPT_RANGE, range);
 
-    m_transfer = std::make_unique<PushThreadData>(m_curl);
+    m_transfer = std::make_unique<PushThreadData>(m_curl, m_token);
     curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, PushThreadData::push_thread_callback);
     curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, m_transfer.get());
 
@@ -82,6 +80,10 @@ Result Http::Read(void* buf, s64 off, s64 size, u64* bytes_read) {
     R_TRY(GetOpenResult());
     *bytes_read = 0;
 
+    UEvent cancelled;
+    ueventCreate(&cancelled, false);
+    std::stop_callback on_stop{m_token, [&cancelled]{ ueventSignal(&cancelled); }};
+
     if (m_transfer && off != m_offset) {
         log_write("[HTTP] read moved from %ld to %ld, restarting transfer\n", m_offset, off);
         m_transfer.reset();
@@ -90,6 +92,7 @@ Result Http::Read(void* buf, s64 off, s64 size, u64* bytes_read) {
     // every read asks for bytes inside the file, so coming up short is the
     // transfer failing rather than the file ending.
     for (u64 stalled_since = 0;;) {
+        R_UNLESS(!m_token.stop_requested(), Result_TransferCancelled);
         if (!m_transfer) {
             R_TRY(Start(off + *bytes_read));
         }
@@ -98,6 +101,7 @@ Result Http::Read(void* buf, s64 off, s64 size, u64* bytes_read) {
         const auto read = m_transfer->PullData(static_cast<char*>(buf) + *bytes_read, size - *bytes_read);
         m_offset += read;
         *bytes_read += read;
+        R_UNLESS(!m_token.stop_requested(), Result_TransferCancelled);
 
         if (static_cast<s64>(*bytes_read) == size) {
             R_SUCCEED();
@@ -116,7 +120,7 @@ Result Http::Read(void* buf, s64 off, s64 size, u64* bytes_read) {
         R_UNLESS(now - stalled_since < RESUME_WINDOW_NS, Result_YatiHttpReadFailed);
 
         log_write("[HTTP] resuming at %ld\n", m_offset);
-        svcSleepThread(RETRY_WAIT_NS);
+        waitSingle(waiterForUEvent(&cancelled), RETRY_WAIT_NS);
     }
 }
 

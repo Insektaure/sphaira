@@ -195,7 +195,7 @@ private:
 };
 
 // an install changed what this console holds, so the catalog asks it again
-// rather than go on listing what it found before. main thread.
+// rather than go on listing what it found before.
 void SignalInstalled();
 
 } // namespace sphaira::ui::menu::ownfoil
