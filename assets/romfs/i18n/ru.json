@@ -1,5 +1,5 @@
 {
-  "Homebrew": "Хоумбрю",
+  "Homebrew": "Homebrew",
   "FileBrowser": "Файлы",
   "Appstore": "Магазин приложений",
   "Corrupted": "Неисправно",
@@ -7,8 +7,8 @@
     "Установка отключена.\n",
     "Включите в настройках, выбрав Меню (Y) -> Дополнительно -> Параметры установки -> Включить."
   ],
-  "On": "Вкл",
-  "Off": "Выкл",
+  "On": "Вкл.",
+  "Off": "Выкл.",
   "Entry": "Вход",
   "Store": "Магазин",
   "File": "Файл",
@@ -71,7 +71,7 @@
   "8 MB": "8 МБ",
   "16 MB": "16 МБ",
   "Switch-Handheld!": "Портативный режим",
-  "Switch-Docked!": "Режим Дока",
+  "Switch-Docked!": "TV-Режим",
   "Nxlink Connected": "NXLink подключён",
   "Nxlink Upload": "NXLink отправка",
   "Nxlink Finished": "NXLink завершено",
@@ -83,8 +83,8 @@
     "Используйте Appstore, чтобы переустановить hbmenu."
   ],
   "OK": "ОК",
-  "Failed to restore hbmenu, please re-download hbmenu": "Не удалось восстановить hbmenu, пожалуйста, загрузите его снова",
-  "Failed to restore hbmenu, using sphaira instead": "Не удалось восстановить hbmenu, используется sphaira",
+  "Failed to restore hbmenu, please re-download hbmenu": "Не удалось восстановить hbmenu. Пожалуйста, загрузите его снова",
+  "Failed to restore hbmenu, using sphaira instead": "Не удалось восстановить hbmenu. Используется Sphaira",
   "Restored hbmenu, closing sphaira": "hbmenu восстановлен, закрытие sphaira",
   "Restored hbmenu": "hbmenu восстановлен",
   "Restart Sphaira?": "Перезапустить Sphaira?",
@@ -131,7 +131,7 @@
     "При включении он заменяет /hbmenu.nro на Sphaira, создавая резервную копию hbmenu в /switch/hbmenu.nro.\n",
     "Отключение даст вам возможность восстановить hbmenu."
   ],
-  "Add / modify mounts": "Добавить/изменить крепления",
+  "Add / modify mounts": "Добавить/изменить монтирование",
   "mount_options_info": [
     "Создание, изменение и удаление сетевых подключений (HTTP, FTP, SFTP, SMB, NFS).",
     "Для параметров монтирования требуется указать только URL-адрес и имя, а другие поля являются необязательными, например порт, пользователь, пароль и т. д.\n",
@@ -139,8 +139,8 @@
   ],
   "Boost CPU during transfer": "Разгон CPU при передаче",
   "transfer_boost_info": [
-    "Включает режим ускорения во время передачи, что может улучшить скорость передачи. ",
-    "Это устанавливает частоту процессора на 1785 МГц и снижает частоту графического процессора на 76 МГц."
+    "Изменяет разгон устройства во время передачи данных, что может улучшить скорость загрузки.",
+    "Устанавливает частоту процессора на 1785 МГц и снижает частоту графического процессора на 76 МГц."
   ],
   "Text scroll speed": "Скорость текста",
   "Change how fast the scrolling text updates": "Изменение скорости обновления прокручиваемого текста",
@@ -172,16 +172,16 @@
   "DLC": "DLC",
   "SD + System": "SD + Система",
   "Only list games that have content installed on the selected storage.": "Показывать только игры, содержимое которых установлено в выбранном хранилище.",
-  "Rebuild cache": "Перестроить кэш",
+  "Rebuild cache": "Пересобрать кэш",
   "Looks for new or removed games. Sizes are only recalculated for games whose content has changed.": "Ищет новые или удалённые игры. Размер пересчитывается только для игр, содержимое которых изменилось.",
   "Discards the saved sizes and measures every game again from scratch.": "Удаляет сохранённые размеры и заново измеряет каждую игру.",
   "See how much space each game uses on the microSD card and in system memory. Games are listed largest first, so it's easy to find what to remove.": "Показывает, сколько места занимает каждая игра на microSD и в NAND. Самые большие игры идут первыми, поэтому легко найти, что удалить.",
-  "Enable sysmmc": "Включить на сиснанде",
+  "Enable sysmmc": "Включить на sysMMC",
   "Enables installing whilst in sysMMC mode.": "Позволяет установку в режиме sysMMC.",
-  "Enable emummc": "Включить на эмунанде",
+  "Enable emummc": "Включить на emuMMC",
   "Enables installing whilst in emuMMC mode.": "Позволяет установку в режиме emuMMC.",
   "Install location": "Место установки",
-  "Allow downgrade": "Разрешить даунгрейд",
+  "Allow downgrade": "Разрешить откат версий",
   "Allows for installing title updates that are lower than the currently installed update.": [
     "Позволяет устанавливать обновления заголовков, которые",
     "ниже, чем установленное в данный момент обновление."
@@ -323,7 +323,7 @@
   "Sets the password, must be set if anon is disabled.": "Устанавливает пароль, необходимо установить, если анон отключен.",
   "Show album": "Показать альбом",
   "Shows the microSD card album folder.": "Показывает папку альбома карточек microSD.",
-  "Show Atmosphere contents": "Показать содержимое атмосферы",
+  "Show Atmosphere contents": "Показать содержимое Atmosphere",
   "Shows the shortcut for the /atmosphere/contents folder.": "Показывает ярлык папки /atmosphere/contents.",
   "Show bis storage": "Показать хранилище",
   "bis_contents_info": [
@@ -428,7 +428,10 @@
   "HDD write protect": "HDD защита от записи",
   "Makes the connected HDD read-only.": "Делает подключенный HDD доступным только для чтения.",
   "Installing is disabled, enable now?": "Установка отключена, включить сейчас?",
-  "WARNING: Installing apps will lead to a ban!": "ВНИМАНИЕ: Установка приложений приведет к бану!",
+  "WARNING: Installing apps will lead to a ban!": [
+	  "ВНИМАНИЕ: Установка приложений приведет к блокировке консоли!",
+	  "Не устанавливайте приложения в sysMMC."
+  ],
   "Installing enabled!": "Установка включена!",
   "microSD card (/dumps/)": "microSD (/dumps/)",
   "USB export to PC (usb_export.py)": "USB экспорт на ПК (usb_export.py)",
@@ -473,7 +476,7 @@
   "Tools": "Инструменты",
   "Advanced": "Продвинутые",
   "Themes": "Темы",
-  "Legacy": "Легаси",
+  "Legacy": "Устаревшие",
   "Misc": "Прочее",
   "Updated": "По дате",
   "Title": "Название",
