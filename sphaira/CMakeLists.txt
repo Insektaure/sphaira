@@ -72,6 +72,8 @@ else()
 endif()
 
 add_executable(sphaira
+    source/ui/menus/album_menu.cpp
+    source/ui/menus/album_share_menu.cpp
     source/ui/menus/appstore.cpp
     source/ui/menus/ownfoil.cpp
     source/ui/menus/ownfoil_title.cpp
@@ -121,8 +123,11 @@ add_executable(sphaira
     source/location.cpp
     source/log.cpp
     source/main.cpp
+    source/album_caps.cpp
+    source/album_server.cpp
     source/nro.cpp
     source/nxlink.cpp
+    source/qrcode.cpp
     source/owo.cpp
     source/swkbd.cpp
     source/web.cpp
