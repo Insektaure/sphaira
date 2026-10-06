@@ -22,6 +22,7 @@
 #include "ui/menus/save_menu.hpp"
 #include "ui/menus/storage_menu.hpp"
 #include "ui/menus/appstore.hpp"
+#include "ui/menus/ownfoil.hpp"
 
 #include "app.hpp"
 #include "log.hpp"
@@ -338,6 +339,10 @@ const MiscMenuEntry MISC_MENU_ENTRIES[] = {
     { .name = "GitHub", .title = "GitHub", .func = MiscMenuFuncGenerator<ui::menu::gh::Menu>, .flag = MiscMenuFlag_Shortcut, .info =
         "Download releases directly from GitHub. "
         "Custom entries can be added to /config/sphaira/github" },
+
+    { .name = "Ownfoil", .title = "Ownfoil", .func = MiscMenuFuncGenerator<ui::menu::ownfoil::Menu>, .flag = MiscMenuFlag_Shortcut, .info =
+        "Browse and install titles from a self-hosted Ownfoil server.\n\n"
+        "Internet connection required." },
 
 #ifdef ENABLE_FTPSRV
     { .name = "FTP", .title = "FTP Install", .func = MiscMenuFuncGenerator<ui::menu::ftp::Menu>, .flag = MiscMenuFlag_Install, .info =

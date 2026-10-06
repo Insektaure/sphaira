@@ -590,6 +590,11 @@ void App::Loop() {
                     if (arg.callback && !arg.stoken.stop_requested()) {
                         arg.callback(arg.result);
                     }
+                } else if constexpr(std::is_same_v<T, evman::CallbackEventData>) {
+                    log_write("[CallbackEventData] got event\n");
+                    if (arg.callback && !arg.stoken.stop_requested()) {
+                        arg.callback();
+                    }
                 } else {
                     static_assert(false, "non-exhaustive visitor!");
                 }
