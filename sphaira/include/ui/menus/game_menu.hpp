@@ -16,6 +16,10 @@
 #include <vector>
 #include <span>
 
+namespace sphaira::ui {
+class SidebarEntryBase;
+} // namespace sphaira::ui
+
 namespace sphaira::ui::menu::game {
 
 struct PlaytimeWorker;
@@ -192,6 +196,11 @@ Result GetMetaEntries(const Entry& e, title::MetaEntries& out, u32 flags = title
 
 Result GetNcmMetaFromMetaStatus(const NsApplicationContentMetaStatus& status, NcmMetaData& out);
 void DeleteMetaEntries(u64 app_id, int image, const std::string& name, const title::MetaEntries& entries);
+// removes the content of each application but keeps its record, icon and
+// saves, same as the system's "Archive Software".
+void ArchiveEntries(std::vector<Entry> targets);
+// greys out the archive option when the entry has nothing installed.
+void DependsArchive(SidebarEntryBase* archive, const Entry& e);
 
 struct TikEntry {
     FsRightsId id{};

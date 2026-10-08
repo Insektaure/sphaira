@@ -734,7 +734,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
 
                 // removes the content but keeps the record, icon and saves,
                 // same as the system's "Archive Software".
-                options->Add<SidebarEntryCallback>("Archive"_i18n, [this](){
+                auto archive = options->Add<SidebarEntryCallback>("Archive"_i18n, [this](){
                     const auto buf = i18n::Reorder("Are you sure you want to archive ", m_entries[m_index].GetName()) + "?";
                     App::Push<OptionBox>(
                         buf,
@@ -746,6 +746,11 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     );
                 }, true, "Frees up the space used by the game, its updates and DLC. "
                          "The game stays in the list with its save data, reinstall it to play again."_i18n);
+
+                // with a selection, the titles with nothing installed are skipped.
+                if (!m_selected_count) {
+                    DependsArchive(archive, m_entries[m_index]);
+                }
             }
 
             options->Add<SidebarEntryCallback>("Advanced options"_i18n, [this](){
@@ -1628,9 +1633,26 @@ void Menu::RefreshGameCard() {
     }
 }
 
+void DependsArchive(SidebarEntryBase* archive, const Entry& e) {
+    if (!e.content_loaded || e.installed) {
+        return;
+    }
+
+    if (e.IsArchived()) {
+        archive->Depends([]{ return false; }, "This game is already archived."_i18n);
+    } else {
+        archive->Depends([]{ return false; }, "Nothing is installed, this game plays from its game card."_i18n);
+    }
+}
+
 void Menu::ArchiveGames() {
-    App::Push<ProgressBox>(0, "Archiving"_i18n, "", [this](auto pbox) -> Result {
-        auto targets = GetSelectedEntries();
+    ArchiveEntries(GetSelectedEntries());
+    ClearSelection();
+}
+
+void ArchiveEntries(std::vector<Entry> targets) {
+    const auto image = targets.size() == 1 ? targets[0].image : 0;
+    App::Push<ProgressBox>(image, "Archiving"_i18n, "", [targets](auto pbox) mutable -> Result {
         const auto gc_app_ids = GetGameCardAppIds();
 
         for (s64 i = 0; i < std::size(targets); i++) {
@@ -1650,11 +1672,11 @@ void Menu::ArchiveGames() {
         }
 
         R_SUCCEED();
-    }, [this](Result rc){
+    }, [](Result rc){
         App::PushErrorBox(rc, "Archive failed!"_i18n);
 
-        ClearSelection();
-        m_dirty = true;
+        // rescans the games menu.
+        SignalChange();
 
         if (R_SUCCEEDED(rc)) {
             App::Notify("Archive successful!"_i18n);

@@ -792,6 +792,8 @@
   "Archive successful!": "アーカイブ完了しました!",
   "This game is archived, it must be reinstalled before it can be played.": "このゲームはアーカイブされています。プレイするには再インストールが必要です。",
   "Insert the game card to play this game.": "このゲームをプレイするにはゲームカードを挿入してください。",
+  "This game is already archived.": "このゲームはすでにアーカイブされています。",
+  "Nothing is installed, this game plays from its game card.": "何もインストールされていません。このゲームはゲームカードから起動します。",
   "Frees up the space used by the game, its updates and DLC. The game stays in the list with its save data, reinstall it to play again.": "ゲーム本体、更新データ、DLCの容量を解放します。ゲームはセーブデータと共にリストに残ります。再びプレイするには再インストールしてください。",
   "Select content to export": "抽出するコンテンツを選択",
   "Export All": "すべて抽出",
